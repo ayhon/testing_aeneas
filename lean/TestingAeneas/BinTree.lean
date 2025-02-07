@@ -130,13 +130,30 @@ theorem rust_length_insert(tree: BinTree α)(a: α)
    have⟨size', size'_st, size'_spec⟩:= @U32.add_spec size 1#u32 (by scalar_tac)
    simp [size'_st, size'_spec]
 
-   /- TODO:
+   /- 
       Here I would like to apply `size_spec` and basically change completely into the
       Lean model, so that I can apply length_insert and conclude the theorem. To do
       so I need to apply the `size_spec` theorem over `tree'`, which I'm entitled to
       do because from noOverflow I'm able to derive it using `length_insert`.
    -/
-   sorry
-
+   have: Tree.size (toTree tree') <= U32.max := by
+     rw [<-insert_spec]
+     rw [length_insert]
+     exact noOverflow
+   have⟨size'', size''_st, size''_spec⟩:= @size_spec _ tree' this
+   simp [size''_st]
+   apply Scalar.eq_imp
+   simp [size'_spec]
+   -- TODO: We have an equality on Z, but I need it on Nat :(
+   /- rw [<- size''_spec] -/
+   have: Tree.size (toTree tree') = (size: Int) + 1 := by
+     rw [<- insert_spec]
+     rw [length_insert]
+     rw [size_spec']
+     scalar_tac
+   -- I would like to know how to handle these kinds of cases more consistently
+   rw[<-this]
+   rw[size''_spec]
+   scalar_tac
    
 end Lemmas
