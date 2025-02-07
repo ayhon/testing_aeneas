@@ -45,15 +45,14 @@ impl<T> BinTree<T> {
                 *self = Self::Node {value, left: Self::nil(), right: Self::nil()};
             }
             Self::Node{right, ..} => {
-                right.as_mut().insert(value);
-                // right.insert(value);
+                right.insert(value);
             }
                 
         }
     }
     fn size(&self) -> u32 {
         match self {
-            Self::Nil => 1,
+            Self::Nil => 0,
             Self::Node{left, right, ..} => 1 + left.size() + right.size(),
         }
     }

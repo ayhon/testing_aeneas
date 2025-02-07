@@ -82,7 +82,7 @@ namespace Lemmas
       simp [toTree, rev]
       simp [rhs_rev_spec, lhs_rev_spec]
 
-  theorem toTree_equiv{A: Type}(tree tree': testing_aeneas.Tree A)
+  theorem toTree_equiv{A: Type}{tree tree': testing_aeneas.Tree A}
   : toTree tree = toTree tree' ↔ tree = tree'
   := by
     apply Iff.intro
@@ -97,8 +97,8 @@ namespace Lemmas
     | .Branch lhs rhs, .Branch lhs' rhs' =>
         simp [toTree] at *
         split_conjs
-        · exact toTree_equiv _ _ |>.mp toTree_eq.left
-        · exact toTree_equiv _ _ |>.mp toTree_eq.right
+        · exact toTree_equiv.mp toTree_eq.left
+        · exact toTree_equiv.mp toTree_eq.right
 
 
   theorem Mathlib_rev_involution{A: Type}(tree: MathLibTree A)
@@ -111,7 +111,7 @@ namespace Lemmas
   : do {(<-tree.rev).rev} = Result.ok tree := by
     progress with rev_spec as ⟨tree_rev, tree_rev_spec⟩
     progress with rev_spec as ⟨tree_rev_rev, tree_rev_rev_spec⟩
-    apply toTree_equiv _ _ |>.mp
+    apply toTree_equiv.mp
     rw [<-tree_rev_rev_spec, <-tree_rev_spec]
     apply Mathlib_rev_involution
 

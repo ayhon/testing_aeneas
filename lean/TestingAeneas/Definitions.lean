@@ -54,14 +54,8 @@ inductive BinTree (T : Type) where
 def BinTree.nil (T : Type) : Result (BinTree T) :=
   Result.ok BinTree.Nil
 
-/- [alloc::boxed::{core::convert::AsMut<T> for alloc::boxed::Box<T>}#73::as_mut]:
-   Source: '/rustc/library/alloc/src/boxed.rs', lines 2669:4-2669:34
-   Name pattern: alloc::boxed::{core::convert::AsMut<Box<@T>, @T>}::as_mut -/
-axiom alloc.boxed.AsMutBoxT.as_mut
-  {T : Type} (A : Type) : T → Result (T × (T → T))
-
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::insert]:
-   Source: 'src/lib.rs', lines 42:4-53:5 -/
+   Source: 'src/lib.rs', lines 42:4-52:5 -/
 divergent def BinTree.insert
   {T : Type} (self : BinTree T) (value : T) : Result (BinTree T) :=
   match self with
@@ -72,36 +66,19 @@ divergent def BinTree.insert
     Result.ok (BinTree.Node value bt bt1)
   | BinTree.Node t bt right =>
     do
-    let (bt1, as_mut_back) ←
-      alloc.boxed.AsMutBoxT.as_mut alloc.alloc.Global right
-    let bt2 ← BinTree.insert bt1 value
-    let right1 := as_mut_back bt2
+    let right1 ← BinTree.insert right value
     Result.ok (BinTree.Node t bt right1)
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::size]:
-   Source: 'src/lib.rs', lines 54:4-59:5 -/
+   Source: 'src/lib.rs', lines 53:4-58:5 -/
 divergent def BinTree.size {T : Type} (self : BinTree T) : Result U32 :=
   match self with
-  | BinTree.Nil => Result.ok 1#u32
+  | BinTree.Nil => Result.ok 0#u32
   | BinTree.Node _ left right =>
     do
     let i ← BinTree.size left
     let i1 ← 1#u32 + i
     let i2 ← BinTree.size right
     i1 + i2
-
-/- Trait declaration: [core::convert::AsMut]
-   Source: '/rustc/library/core/src/convert/mod.rs', lines 369:0-369:26
-   Name pattern: core::convert::AsMut -/
-structure core.convert.AsMut (Self : Type) (T : Type) where
-  as_mut : Self → Result (T × (T → Self))
-
-/- Trait implementation: [alloc::boxed::{core::convert::AsMut<T> for alloc::boxed::Box<T>}#73]
-   Source: '/rustc/library/alloc/src/boxed.rs', lines 2668:0-2668:52
-   Name pattern: core::convert::AsMut<Box<@Self>, @Self> -/
-@[reducible]
-def core.convert.AsMutBoxT (T : Type) (A : Type) : core.convert.AsMut T T := {
-  as_mut := alloc.boxed.AsMutBoxT.as_mut A
-}
 
 end testing_aeneas
