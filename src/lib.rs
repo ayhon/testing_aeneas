@@ -56,6 +56,30 @@ impl<T> BinTree<T> {
             Self::Node{left, right, ..} => 1 + left.size() + right.size(),
         }
     }
+
+    fn contains(&self, target: &T) -> bool {
+        match self {
+            Self::Nil => false,
+            Self::Node{value, left, right} =>
+                // It's probably better to express as a boolean formula
+                if *value == *target {
+                    true
+                } else {
+                    left.contains(target) || right.contains(target)
+                }
+        }
+    }
+
+    fn reverse(&mut self) {
+        match self {
+            Self::Nil => (),
+            Self::Node{left, right, value} => {
+                left.reverse();
+                right.reverse();
+                std::mem::swap(left, right)
+            }
+        }
+    }
 }
 
 
