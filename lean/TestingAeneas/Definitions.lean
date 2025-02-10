@@ -49,6 +49,38 @@ inductive BinTree (T : Type) where
 | Nil : BinTree T
 | Node : T → BinTree T → BinTree T → BinTree T
 
+/- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::nil]:
+   Source: 'src/lib.rs', lines 41:4-41:49 -/
+def BinTree.nil (T : Type) : Result (BinTree T) :=
+  Result.ok BinTree.Nil
+
+/- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::insert]:
+   Source: 'src/lib.rs', lines 42:4-52:5 -/
+divergent def BinTree.insert
+  {T : Type} (self : BinTree T) (value : T) : Result (BinTree T) :=
+  match self with
+  | BinTree.Nil =>
+    do
+    let bt ← BinTree.nil T
+    let bt1 ← BinTree.nil T
+    Result.ok (BinTree.Node value bt bt1)
+  | BinTree.Node t bt right =>
+    do
+    let right1 ← BinTree.insert right value
+    Result.ok (BinTree.Node t bt right1)
+
+/- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::size]:
+   Source: 'src/lib.rs', lines 53:4-58:5 -/
+divergent def BinTree.size {T : Type} (self : BinTree T) : Result U32 :=
+  match self with
+  | BinTree.Nil => Result.ok 0#u32
+  | BinTree.Node _ left right =>
+    do
+    let i ← BinTree.size left
+    let i1 ← 1#u32 + i
+    let i2 ← BinTree.size right
+    i1 + i2
+
 /- Trait declaration: [core::cmp::PartialEq]
    Source: '/rustc/library/core/src/cmp.rs', lines 248:0-248:39
    Name pattern: core::cmp::PartialEq -/
@@ -61,44 +93,8 @@ structure core.cmp.PartialEq (Self : Type) (Rhs : Type) where
 structure core.cmp.Eq (Self : Type) where
   PartialEqInst : core.cmp.PartialEq Self Self
 
-/- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::nil]:
-   Source: 'src/lib.rs', lines 41:4-41:49 -/
-def BinTree.nil
-  {T : Type} (corecmpEqInst : core.cmp.Eq T) : Result (BinTree T) :=
-  Result.ok BinTree.Nil
-
-/- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::insert]:
-   Source: 'src/lib.rs', lines 42:4-52:5 -/
-divergent def BinTree.insert
-  {T : Type} (corecmpEqInst : core.cmp.Eq T) (self : BinTree T) (value : T) :
-  Result (BinTree T)
-  :=
-  match self with
-  | BinTree.Nil =>
-    do
-    let bt ← BinTree.nil corecmpEqInst
-    let bt1 ← BinTree.nil corecmpEqInst
-    Result.ok (BinTree.Node value bt bt1)
-  | BinTree.Node t bt right =>
-    do
-    let right1 ← BinTree.insert corecmpEqInst right value
-    Result.ok (BinTree.Node t bt right1)
-
-/- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::size]:
-   Source: 'src/lib.rs', lines 53:4-58:5 -/
-divergent def BinTree.size
-  {T : Type} (corecmpEqInst : core.cmp.Eq T) (self : BinTree T) : Result U32 :=
-  match self with
-  | BinTree.Nil => Result.ok 0#u32
-  | BinTree.Node _ left right =>
-    do
-    let i ← BinTree.size corecmpEqInst left
-    let i1 ← 1#u32 + i
-    let i2 ← BinTree.size corecmpEqInst right
-    i1 + i2
-
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::contains]:
-   Source: 'src/lib.rs', lines 60:4-71:5 -/
+   Source: 'src/lib.rs', lines 60:4-74:5 -/
 divergent def BinTree.contains
   {T : Type} (corecmpEqInst : core.cmp.Eq T) (self : BinTree T) (target : T) :
   Result Bool
@@ -118,17 +114,15 @@ divergent def BinTree.contains
       else BinTree.contains corecmpEqInst right target
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::reverse]:
-   Source: 'src/lib.rs', lines 73:4-82:5 -/
+   Source: 'src/lib.rs', lines 76:4-85:5 -/
 divergent def BinTree.reverse
-  {T : Type} (corecmpEqInst : core.cmp.Eq T) (self : BinTree T) :
-  Result (BinTree T)
-  :=
+  {T : Type} (self : BinTree T) : Result (BinTree T) :=
   match self with
   | BinTree.Nil => Result.ok BinTree.Nil
   | BinTree.Node value left right =>
     do
-    let left1 ← BinTree.reverse corecmpEqInst left
-    let right1 ← BinTree.reverse corecmpEqInst right
+    let left1 ← BinTree.reverse left
+    let right1 ← BinTree.reverse right
     let (left2, right2) := core.mem.swap left1 right1
     Result.ok (BinTree.Node value left2 right2)
 

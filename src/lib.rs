@@ -37,7 +37,7 @@ enum BinTree<T> {
 }
 
 
-impl<T: Eq> BinTree<T> {
+impl<T> BinTree<T> {
     fn nil() -> Box<Self> { Box::new(Self::Nil) }
     fn insert(&mut self, value: T) {
         match self {
@@ -57,7 +57,10 @@ impl<T: Eq> BinTree<T> {
         }
     }
 
-    fn contains(&self, target: &T) -> bool {
+    fn contains(&self, target: &T) -> bool 
+    where T: Eq
+    {
+        
         match self {
             Self::Nil => false,
             Self::Node{value, left, right} =>
