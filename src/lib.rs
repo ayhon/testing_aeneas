@@ -37,7 +37,7 @@ enum BinTree<T> {
 }
 
 
-impl<T> BinTree<T> {
+impl<T: Eq> BinTree<T> {
     fn nil() -> Box<Self> { Box::new(Self::Nil) }
     fn insert(&mut self, value: T) {
         match self {
