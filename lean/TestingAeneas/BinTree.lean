@@ -54,7 +54,7 @@ def Tree.size: Tree α -> Nat
 | .node _ lhs rhs => 1 + Tree.size lhs + Tree.size rhs
 
 @[pspec]
-def size_spec{tree: BinTree α}
+def size_spec(tree: BinTree α)
 (noOverflow: Tree.size (tree: Tree α) <= U32.max)
 : ∃ size,
     BinTree.size tree = Result.ok size ∧
@@ -63,27 +63,13 @@ def size_spec{tree: BinTree α}
   rw [BinTree.size]
   match tree with
   | .Nil => simp [Tree.size, toTree]
-  | .Node v lhs rhs => 
+  | .Node v lhs rhs =>
     simp [Tree.size, toTree]
     simp [Tree.size, toTree] at noOverflow
-    -- I have to include the preconditions explicitly in the proof
-    -- but I would have expected `scalar_tac` to deduce them automatically.
-    -- Is it because I'm using `with`? If I don't include them, I get a
-    -- maximum recursion depth exceeded.
-    have: ↑(Tree.size (toTree lhs)) < U32.max := by scalar_tac
-    have⟨lhs_size, st, lhs_size_spec⟩:= @size_spec _ lhs (by scalar_tac); simp [st]
-    -- ↑ maximum recursion depth exceeded using progress. I assume that it's because of `tree`
-    --   being taken as tree and not lhs or rhs
-
-    have: ↑1#u32 + ↑lhs_size ≤ U32.max := by scalar_tac
-    progress with U32.add_spec as ⟨inter, inter_def⟩
-
-    have: ↑(Tree.size (toTree lhs)) < U32.max := by scalar_tac
-    have⟨rhs_size, st, rhs_size_spec⟩:= @size_spec _ rhs (by scalar_tac); simp [st]
-
-    have: ↑inter + ↑rhs_size ≤ U32.max := by scalar_tac
-    progress with U32.add_spec as ⟨res, res_def⟩
-
+    progress as ⟨lhs_size, lhs_size_spec⟩
+    progress as ⟨inter, inter_def⟩
+    progress as ⟨rhs_size, rhs_size_spec⟩
+    progress as ⟨res, res_def⟩
     simp [res_def, inter_def, lhs_size_spec, rhs_size_spec]
     scalar_tac
 end Size
