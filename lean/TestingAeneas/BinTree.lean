@@ -34,7 +34,7 @@ def Tree.insert: Tree α -> α -> Tree α
 @[pspec]
 theorem insert_spec{a: α}{tree: BinTree α}
 : ∃ tree',
-    BinTree.insert tree a = Result.ok tree' ∧
+    BinTree.insert o tree a = Result.ok tree' ∧
     Tree.insert ↑tree a = ↑tree'
 := by
   rw [BinTree.insert] 
@@ -57,7 +57,7 @@ def Tree.size: Tree α -> Nat
 def size_spec(tree: BinTree α)
 (noOverflow: Tree.size (tree: Tree α) <= U32.max)
 : ∃ size,
-    BinTree.size tree = Result.ok size ∧
+    BinTree.size o tree = Result.ok size ∧
     Tree.size (tree: Tree α) = size.toNat
 := by
   rw [BinTree.size]
@@ -106,15 +106,14 @@ theorem length_insert(tree: Tree α)(a: α)
 
 theorem rust_length_insert(tree: BinTree α)(a: α)
 (noOverflow: Tree.size (tree: Tree α) < U32.max)
-: do {(<- tree.insert a).size} = do {(<-tree.size) + 1#u32}
+: do {(<- tree.insert o a).size o} = do {(<-tree.size o) + 1#u32}
 := by
    progress as ⟨tree', insert_spec⟩
-   /- progress with size_spec as ⟨size, size_spec'⟩ -/ -- maximum recursion depth again
-   have⟨size, size_st, size_spec'⟩:= @size_spec _ tree (by scalar_tac)
-   simp [size_st, size_spec']
+   -- maximum recursion depth againof the proof
+   /- progress with size_spec as ⟨size, size_spec'⟩ -/
+   have⟨size, size_st, size_spec'⟩:= @size_spec _ o tree (by scalar_tac); simp [size_st]
 
-   have⟨size', size'_st, size'_spec⟩:= @U32.add_spec size 1#u32 (by scalar_tac)
-   simp [size'_st, size'_spec]
+   have⟨size', size'_st, size'_spec⟩:= @U32.add_spec size 1#u32 (by scalar_tac); simp [size'_st]
 
    /- 
       Here I would like to apply `size_spec` and basically change completely into the
@@ -126,9 +125,11 @@ theorem rust_length_insert(tree: BinTree α)(a: α)
      rw [<-insert_spec]
      rw [length_insert]
      exact noOverflow
-   have⟨size'', size''_st, size''_spec⟩:= @size_spec _ tree' this
-   simp [size''_st]
+   have⟨size'', size''_st, size''_spec⟩:= @size_spec _ o tree' this; simp [size''_st]
+   -- Here I have used all of the spec lemmas and I'm left with an equality on
+   -- terms of the Lean spec
    apply Scalar.eq_imp
+
    simp [size'_spec]
    -- TODO: We have an equality on Z, but I need it on Nat :(
    /- rw [<- size''_spec] -/
@@ -146,9 +147,9 @@ theorem rust_length_insert(tree: BinTree α)(a: α)
 theorem rust_length_insert'(tree: BinTree α)(a: α)
 (noOverflow: Tree.size (tree: Tree α) < U32.max)
 : ∃ treeᵢ sizeᵢ size,
-    tree.insert a = Result.ok treeᵢ ∧
-    treeᵢ.size = Result.ok sizeᵢ ∧
-    tree.size = Result.ok size ∧
+    tree.insert o a = Result.ok treeᵢ ∧
+    treeᵢ.size o = Result.ok sizeᵢ ∧
+    tree.size o = Result.ok size ∧
     (sizeᵢ: Int) = (size: Int) + 1
 := by 
     progress as ⟨treeᵢ, treeᵢ_spec⟩; simp
