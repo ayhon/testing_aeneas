@@ -156,4 +156,28 @@ theorem rust_length_insert(tree: BinTree α)(a: α)
    rw[size''_spec]
    scalar_tac
    
+
+theorem rust_length_insert'(tree: BinTree α)(a: α)
+(noOverflow: Tree.size (tree: Tree α) < U32.max)
+: ∃ treeᵢ sizeᵢ size,
+    tree.insert a = Result.ok treeᵢ ∧
+    treeᵢ.size = Result.ok sizeᵢ ∧
+    tree.size = Result.ok size ∧
+    (sizeᵢ: Int) = (size: Int) + 1
+:= by 
+    progress as ⟨treeᵢ, treeᵢ_spec⟩; simp
+    have: Tree.size (toTree treeᵢ) <= U32.max := by
+      rw [<-treeᵢ_spec]
+      rw [length_insert]
+      exact noOverflow
+    progress as ⟨sizeᵢ, sizeᵢ_spec⟩
+    have: ↑(Tree.size (toTree tree)) ≤ U32.max := by scalar_tac
+    progress as ⟨size,  size_spec⟩
+    have: sizeᵢ.toNat = size.toNat + 1 := by
+      rw [<-sizeᵢ_spec, <-treeᵢ_spec, <-size_spec]
+      apply length_insert
+    scalar_tac
+
 end Lemmas
+
+
