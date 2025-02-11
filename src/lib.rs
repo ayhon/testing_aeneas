@@ -86,6 +86,50 @@ impl<T> BinTree<T> {
 }
 
 
+enum BSTree<T> {
+    Nil,
+    Node {
+        value: T,
+        left: Box<BSTree<T>>,
+        right: Box<BSTree<T>>,
+    }
+}
+
+impl<T: Ord + Eq> BSTree<T>{
+    fn contains(&self, target: &T) -> bool {
+        match self {
+            Self::Nil => false,
+            Self::Node{value: curr, left, right} =>
+                if *target == *curr {
+                    true
+                } else if *target < *curr {
+                    left.contains(target)
+                } else {
+                    right.contains(target)
+                }
+        }
+    }
+    fn insert(&mut self, value: T) {
+        match self {
+            Self::Nil => {
+                let new_node = Self::Node{
+                    value,
+                    left: Box::new(Self::Nil),
+                    right: Box::new(Self::Nil)
+                };
+                std::mem::replace(self, new_node);
+            }
+            Self::Node{value: curr, left, right} => {
+                if value <= *curr {
+                    left.insert(value)
+                } else {
+                    right.insert(value)
+                }
+            }
+        }
+    }
+}
+
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
