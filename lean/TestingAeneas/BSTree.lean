@@ -24,6 +24,7 @@ def BSTree.insert[BEq α][LE α][DecidableLE α](value: α): BSTree α -> BSTree
   else 
     Node curr left (right.insert value)
 
+@[simp]
 abbrev between[LE α][DecidableLE α](lo hi value: α) := decide (lo <= value ∧ value <= hi)
 
 def BSTree.for_all(condition: α -> Bool): BSTree α -> Bool
@@ -162,12 +163,99 @@ theorem contains_spec(tree: BSTree Isize)(target: Isize)
         simp [not_in_left]
 
 
-theorem insert_spec(tree: BSTree Isize)(a: Isize)
+theorem nil_of_wellformed_of_gt[BEq α][LawfulBEq α][LE α][DecidableLE α][IsTrans α (·≤·)][BoundedOrder α](tree: Spec.BSTree α)
+: ¬ (l <= r) -> tree.WellFormed l r -> tree = .Nil
+:= by
+  intro l_gt_r
+  intro tree_wf
+  match tree with
+  | .Nil => rfl
+  | .Node .. =>
+    obtain _|⟨_, _, _, left_inv, right_inv, non_empty, left_wf, right_wf⟩ := tree_wf
+    simp at non_empty
+    have ⟨lb, ub⟩ := non_empty
+    have: l <= r := Trans.trans lb ub
+    simp at *; contradiction
+    
+
+@[pspec]
+theorem insert_spec[BEq Isize][LawfulBEq Isize](tree: BSTree Isize)(value: Isize)
 : (toSpec tree).WellFormed l r 
 -> ∃ tree',
-    BSTreeIsize.insert tree a = Result.ok tree' ∧
-    Spec.BSTree.insert a ↑tree = ↑tree' ∧
-    (toSpec tree).WellFormed (min l a) (max r a)
-:= sorry
+    BSTreeIsize.insert tree value = Result.ok tree' ∧
+    Spec.BSTree.insert value ↑tree = ↑tree' ∧
+    (toSpec tree).WellFormed (minOfLe.min l value) (maxOfLe.max r value)
+:= by
+  intro well_formed
+  rw [BSTreeIsize.insert]
+  match tree with
+  | .Nil => 
+    simp [toSpec, Spec.BSTree.insert]
+    apply Spec.BSTree.WellFormed.isEmpty
+  | .Node curr left right =>
+    simp [toSpec, Spec.BSTree.insert]
+    simp [toSpec] at well_formed
+    obtain _|⟨_, _, _, left_inv, right_inv, nonempty, left_wf, right_wf⟩ := well_formed 
+    simp at nonempty
 
+    simp [for_all_iff_contains] at right_inv left_inv
+    split_ifs <;> try (first | scalar_tac | contradiction) 
+    case pos value_neq_curr curr_ge => 
+      /- have curr_gt: ↑value < ↑curr := by scalar_tac -/
+      progress as ⟨tree', tree'_spec, tree'_wf⟩
+      simp [tree'_spec]
+      simp [maxOfLe, curr_ge] at tree'_wf
+      have: (value: Int) <= ↑r := by scalar_tac
+      simp [maxOfLe, this]
+      apply Spec.BSTree.WellFormed.isCompound
+      -- I'm now getting some really slow updates which are a PITA
+      case left_inv => 
+        apply for_all_iff_contains.mpr
+        intro x x_in_left
+        have := left_inv x x_in_left
+        simp [Spec.between, this]
+      case right_inv => 
+        apply for_all_iff_contains.mpr
+        intro x x_in_right
+        have := right_inv x x_in_right
+        simp [Spec.between, this]
+      case left_wf => 
+        assumption
+      case right_wf => 
+        assumption
+      case non_empty =>
+        simp [Spec.between, maxOfLe]
+        scalar_tac
+    case pos _ curr_eq_value => 
+      subst curr_eq_value
+      simp [maxOfLe, minOfLe, nonempty]
+      apply Spec.BSTree.WellFormed.isCompound <;>
+        try apply for_all_iff_contains.mpr <;> 
+        try simp [Spec.between] <;> 
+        assumption
+      · scalar_tac
+      -- I don't understand why these two tactics are not solved by the previous tactical
+      · assumption
+      · assumption
+    case neg _ curr_gt => 
+      progress as ⟨tree', tree'_spec, tree'_wf⟩
+      simp [tree'_spec]
+      have: curr <= (value: Int) := by apply Int.le_of_lt; assumption
+      simp [minOfLe, this] at tree'_wf
+      have: l <= (value: Int) := _root_.trans nonempty.left this
+      simp [minOfLe, this]
+      apply Spec.BSTree.WellFormed.isCompound
+      case left_inv => 
+        apply for_all_iff_contains.mpr
+        intro x x_in_left
+        have := left_inv x x_in_left
+        simp [Spec.between, this]
+      case right_inv => 
+        apply for_all_iff_contains.mpr
+        intro x x_in_right
+        have := right_inv x x_in_right
+        simp [Spec.between, this]
+      case right_wf => assumption
+      case left_wf => assumption
+      case non_empty => simp [Spec.between, minOfLe]; scalar_tac
 end Lemmas
