@@ -230,13 +230,9 @@ theorem insert_spec[BEq Isize][LawfulBEq Isize](tree: BSTree Isize)(value: Isize
       subst curr_eq_value
       simp [maxOfLe, minOfLe, nonempty]
       apply Spec.BSTree.WellFormed.isCompound <;>
-        try apply for_all_iff_contains.mpr <;> 
-        try simp [Spec.between] <;> 
+        (try apply for_all_iff_contains.mpr) <;> 
+        (try simp [Spec.between]) <;> 
         assumption
-      · scalar_tac
-      -- I don't understand why these two tactics are not solved by the previous tactical
-      · assumption
-      · assumption
     case neg _ curr_gt => 
       progress as ⟨tree', tree'_spec, tree'_wf⟩
       simp [tree'_spec]
