@@ -433,7 +433,7 @@ theorem insert_spec(tree: BSTree Isize)(value: Isize)
       progress as ⟨left', left'_spec, left'_wf⟩
       simp; split_conjs
       · rw [<-left'_spec]
-        sorry
+        simp [Set.insert_union, Set.insert_comm]
       · simp [maxOfLe, le_of_lt value_lt_curr] at left'_wf
         assumption
       · have: value < (r : Int) := Trans.trans value_lt_curr nonempty.right
@@ -459,7 +459,7 @@ theorem insert_spec(tree: BSTree Isize)(value: Isize)
         progress as ⟨right', right'_spec, right'_wf⟩
         simp; split_conjs
         · rw [<-right'_spec]
-          sorry
+          simp [Set.insert_union]
         · have := Trans.trans nonempty.left value_gt_curr
           simp [minOfLe, le_of_lt this]
           assumption
