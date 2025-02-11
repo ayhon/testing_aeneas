@@ -14,12 +14,15 @@ def BSTree.contains[BEq α]: BSTree α -> α -> Bool
 | Node curr left right, target => 
     curr == target || left.contains target || right.contains target
 
-def BSTree.insert[Ord α](value: α): BSTree α -> BSTree α
+def BSTree.insert[BEq α][LE α][DecidableLE α](value: α): BSTree α -> BSTree α
 | Nil => Node value Nil Nil
 | Node curr left right =>
-  match compare value curr with
-  | .lt => Node curr (left.insert value) right
-  | _   => Node curr left (right.insert value)
+  if value == curr then 
+    Node curr left right
+  else if value <= curr then -- This is actually value < curr, but we define everything in terms of LE
+    Node curr (left.insert value) right
+  else 
+    Node curr left (right.insert value)
 
 abbrev between[LE α][DecidableLE α](lo hi value: α) := decide (lo <= value ∧ value <= hi)
 
@@ -29,12 +32,17 @@ def BSTree.for_all(condition: α -> Bool): BSTree α -> Bool
   condition curr && left.for_all condition && right.for_all condition
 
 inductive BSTree.WellFormed[LE α][DecidableLE α][BoundedOrder α]: BSTree α -> α -> α -> Prop where
-  | isEmpty : BSTree.Nil.WellFormed ⊥ ⊤
+  | isEmpty : ∀ a b : α, BSTree.Nil.WellFormed a b
+  -- The problem with this (↑) approach is that we no longer have
+  -- the invariant that a <= b, which may be useful for proofs.
+  -- Solution: Add it to compound. In general, the empty tree 
+  --  should satisfy any possible bounds, so the definition makes sense
   | isCompound(v: α)
     (left right: BSTree α)
     (left_inv:  left.for_all <| between l v)
     (right_inv: right.for_all <| between v r)
-    : left.WellFormed l v -> right.WellFormed v r -> (Node v left right).WellFormed l r
+    (non_empty: between l r v)
+    : (left_wf: left.WellFormed l v) -> (right_wf: right.WellFormed v r) -> (Node v left right).WellFormed l r
 
 end Spec
 
@@ -101,6 +109,7 @@ theorem for_all_iff_contains[BEq α][LawfulBEq α]{tree: Spec.BSTree α}{p: α -
 
 
 
+@[pspec]
 theorem contains_spec(tree: BSTree Isize)(target: Isize)
 : (toSpec tree).WellFormed l r
 -> ∃ b,
@@ -113,7 +122,7 @@ theorem contains_spec(tree: BSTree Isize)(target: Isize)
   | .Nil => simp [Spec.BSTree.contains]
   | .Node curr left right => 
       simp 
-      obtain _|⟨_, _, _, left_inv, right_inv, left_wf, right_wf⟩ := well_formed 
+      obtain _|⟨_, _, _, left_inv, right_inv, non_empty, left_wf, right_wf⟩ := well_formed 
       --        ^↑ Why do I need to add these holes? TODO
       split_ifs
       case pos found =>
