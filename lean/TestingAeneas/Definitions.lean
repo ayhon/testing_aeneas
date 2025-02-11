@@ -132,88 +132,41 @@ inductive BSTree (T : Type) where
 | Nil : BSTree T
 | Node : T → BSTree T → BSTree T → BSTree T
 
-/- [core::cmp::Ordering]
-   Source: '/rustc/library/core/src/cmp.rs', lines 387:0-387:17
-   Name pattern: core::cmp::Ordering -/
-inductive core.cmp.Ordering where
-| Less : core.cmp.Ordering
-| Equal : core.cmp.Ordering
-| Greater : core.cmp.Ordering
-
-/- Trait declaration: [core::cmp::PartialOrd]
-   Source: '/rustc/library/core/src/cmp.rs', lines 1293:0-1293:56
-   Name pattern: core::cmp::PartialOrd -/
-structure core.cmp.PartialOrd (Self : Type) (Rhs : Type) where
-  PartialEqInst : core.cmp.PartialEq Self Rhs
-  partial_cmp : Self → Rhs → Result (Option core.cmp.Ordering)
-
-/- Trait declaration: [core::cmp::Ord]
-   Source: '/rustc/library/core/src/cmp.rs', lines 946:0-946:36
-   Name pattern: core::cmp::Ord -/
-structure core.cmp.Ord (Self : Type) where
-  EqInst : core.cmp.Eq Self
-  PartialOrdInst : core.cmp.PartialOrd Self Self
-  cmp : Self → Self → Result core.cmp.Ordering
-
-/- [core::cmp::PartialOrd::lt]:
-   Source: '/rustc/library/core/src/cmp.rs', lines 1335:4-1335:37
-   Name pattern: core::cmp::PartialOrd::lt -/
-axiom core.cmp.PartialOrd.lt
-  {Self : Type} {Rhs : Type} (self_clause : core.cmp.PartialOrd Self Rhs) :
-  Self → Rhs → Result Bool
-
-/- [testing_aeneas::{testing_aeneas::BSTree<T>}#2::contains]:
+/- [testing_aeneas::{testing_aeneas::BSTree<isize>}#2::contains]:
    Source: 'src/lib.rs', lines 99:4-111:5 -/
-divergent def BSTree.contains
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (corecmpEqInst : core.cmp.Eq T)
-  (self : BSTree T) (target : T) :
-  Result Bool
-  :=
+divergent def BSTreeIsize.contains
+  (self : BSTree Isize) (target : Isize) : Result Bool :=
   match self with
   | BSTree.Nil => Result.ok false
   | BSTree.Node curr left right =>
-    do
-    let b ← corecmpEqInst.PartialEqInst.eq target curr
-    if b
+    if target = curr
     then Result.ok true
     else
-      do
-      let b1 ←
-        core.cmp.PartialOrd.lt corecmpOrdInst.PartialOrdInst target curr
-      if b1
-      then BSTree.contains corecmpOrdInst corecmpEqInst left target
-      else BSTree.contains corecmpOrdInst corecmpEqInst right target
+      if target < curr
+      then BSTreeIsize.contains left target
+      else BSTreeIsize.contains right target
 
-/- [core::cmp::PartialOrd::le]:
-   Source: '/rustc/library/core/src/cmp.rs', lines 1353:4-1353:37
-   Name pattern: core::cmp::PartialOrd::le -/
-axiom core.cmp.PartialOrd.le
-  {Self : Type} {Rhs : Type} (self_clause : core.cmp.PartialOrd Self Rhs) :
-  Self → Rhs → Result Bool
-
-/- [testing_aeneas::{testing_aeneas::BSTree<T>}#2::insert]:
+/- [testing_aeneas::{testing_aeneas::BSTree<isize>}#2::insert]:
    Source: 'src/lib.rs', lines 112:4-130:5 -/
-divergent def BSTree.insert
-  {T : Type} (corecmpOrdInst : core.cmp.Ord T) (corecmpEqInst : core.cmp.Eq T)
-  (self : BSTree T) (value : T) :
-  Result (BSTree T)
-  :=
+divergent def BSTreeIsize.insert
+  (self : BSTree Isize) (value : Isize) : Result (BSTree Isize) :=
   match self with
   | BSTree.Nil =>
     let (_, self1) :=
       core.mem.replace BSTree.Nil (BSTree.Node value BSTree.Nil BSTree.Nil)
     Result.ok self1
   | BSTree.Node curr left right =>
-    do
-    let b ← core.cmp.PartialOrd.le corecmpOrdInst.PartialOrdInst value curr
-    if b
+    if value < curr
     then
       do
-      let left1 ← BSTree.insert corecmpOrdInst corecmpEqInst left value
+      let left1 ← BSTreeIsize.insert left value
       Result.ok (BSTree.Node curr left1 right)
     else
-      do
-      let right1 ← BSTree.insert corecmpOrdInst corecmpEqInst right value
-      Result.ok (BSTree.Node curr left right1)
+      if curr < value
+      then
+        do
+        let right1 ← BSTreeIsize.insert right value
+        Result.ok (BSTree.Node curr left right1)
+      else Result.ok self
 
 end testing_aeneas

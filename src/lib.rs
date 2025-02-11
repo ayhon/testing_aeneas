@@ -95,8 +95,8 @@ enum BSTree<T> {
     }
 }
 
-impl<T: Ord + Eq> BSTree<T>{
-    fn contains(&self, target: &T) -> bool {
+impl BSTree<isize>{
+    fn contains(&self, target: &isize) -> bool {
         match self {
             Self::Nil => false,
             Self::Node{value: curr, left, right} =>
@@ -109,7 +109,7 @@ impl<T: Ord + Eq> BSTree<T>{
                 }
         }
     }
-    fn insert(&mut self, value: T) {
+    fn insert(&mut self, value: isize) {
         match self {
             Self::Nil => {
                 let new_node = Self::Node{
@@ -120,9 +120,9 @@ impl<T: Ord + Eq> BSTree<T>{
                 std::mem::replace(self, new_node);
             }
             Self::Node{value: curr, left, right} => {
-                if value <= *curr {
+                if value < *curr {
                     left.insert(value)
-                } else {
+                } else if *curr < value {
                     right.insert(value)
                 }
             }
