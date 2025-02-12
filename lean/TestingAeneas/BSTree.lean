@@ -5,65 +5,42 @@ open Aeneas.Std
 
 attribute [-simp] Bool.exists_bool
 
+section SetImpl/- {{{ -/
 
-namespace SetImpl/- {{{ -/
 namespace Spec/- {{{ -/
-/-
-In this case, the spec is simply Mathlib's `Set`.
-Then `insert x` is just `∪ {x}` and `contains`
-is the ∈ operator.
+open testing_aeneas
+def contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
+| .Nil, _=> false
+| .Node curr left right, target => 
+    if target == curr then
+      True
+    else if target < curr then 
+      contains left target 
+    else 
+      contains right target 
 
-EDIT: Actually, I'll just use a list, with a couple
- of restrictions if needed
--/
-/- structure Set(α: Type)where -/
-/-   toList: List α -/
-
-/- def Set.all(condition: α -> Bool)(set : Set α): Bool := set.toList.all condition -/
-
-/- def Set.contains[BEq α](set: Set α)(target: α): Bool := set.toList.contains target -/
-/- instance[BEq α]: Membership (α) (Set α) where mem set target := set.contains target = true -/
-/- instance[BEq α](set: Set α): Decidable (x ∈ set) -/
-
-/- def Set.inclusion[BEq α](set set': Set α): Bool := set.all set'.contains -/
-/- instance[BEq α]: HasSubset (Set α) where Subset set set' := set'.inclusion set = true -/
-
-/- def Set.beq[BEq α](set set': Set α): Bool := set.inclusion set' && set'.inclusion set -/
-/- instance[BEq α]: BEq (Set α) where beq := Set.beq -/
-
-/- def Set.insert[BEq α](set: Set α)(target: α) := -/ 
-/-   if set.all (· != target) -/ 
-/-   then {set with toList := target :: set.toList} -/
-/-   else set`Finset` -/
-
-/- theorem all_contains[BEq α](set: Set α)(condition: α -> Bool) -/
-/- : set.all condition ↔ (∀ x, set.contains x -> condition x) -/ 
-/- := sorry -/
-/- 
-EDIT2: I'm going to try with Mathlib's `Set` again
--/
-
-
+def insert[BEq α][LT α][DecidableLT α](value: α): BSTree α -> BSTree α
+| .Nil => .Node value .Nil .Nil
+| .Node curr left right =>
+    if value < curr then
+      .Node curr (insert value left) right
+    else if value > curr then 
+      .Node curr left (insert value right)
+    else 
+      .Node curr left right
 end Spec/- }}} -/
-
-namespace Lemmas/- {{{ -/
 
 open testing_aeneas
 section Translation/- {{{ -/
-
-@[simp] def toSpec: BSTree α -> Set α
+@[simp] def testing_aeneas.BSTree.toSpec: BSTree α -> Set α
 | .Nil => ∅
 | .Node v left right => {v} ∪ (toSpec left) ∪ (toSpec right)
 
 instance: Coe (BSTree α) (Set α) where
-  coe := toSpec
-
-/- theorem toSpec_equiv{tree tree': BSTree α} -/
-/- : (tree : Set α) = tree' ↔ tree = tree' -/
-/- := sorry -/
--- NOTE: This refinement is not injective!
+  coe := BSTree.toSpec
 end Translation/- }}} -/
 
+namespace Lemmas/- {{{ -/
 @[simp] def well_formed[PartialOrder α][IsTotal α (·<=·)]: BSTree α -> Prop
 | .Nil => True
 | .Node curr left right =>
