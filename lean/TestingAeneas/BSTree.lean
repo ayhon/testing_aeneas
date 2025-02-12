@@ -485,6 +485,29 @@ theorem insert_spec(tree: BSTree Isize)(value: Isize)
         simp [maxOfLe, minOfLe, nonempty]
         split_conjs <;> assumption
 
+instance[BEq α]: Membership α (Array α N) where
+  mem arr x := arr.val.contains x
+
+theorem fromItems_loop_spec{N : Usize}
+  (items: Array Isize N)
+  (acc: BSTree Isize)
+  (i: Usize)
+  (i_idx: i <= N)
+: well_formed _ _ acc -> -- TODO: Think about the bounds
+  ∃ tree,
+    (BSTreeIsize.fromItems_loop items res i) = Result.ok tree ∧
+    well_formed l r tree ∧
+    ∀ x, x ∈ (items.val.drop i.toNat) -> x ∈ (tree : Set Isize) ∧
+    (res : Set Isize) ⊆ tree
+:= sorry  
+
+theorem fromItems_spec{N : Usize}(items: Array Isize N)
+: ∃ tree,
+    (BSTreeIsize.fromItems items) = Result.ok tree ∧
+    well_formed l r tree ∧
+    ∀ x, x ∈ items -> x ∈ (tree : Set Isize)
+:= sorry  
+
 
 end Lemmas/- }}} -/
 end SetImpl/- }}} -/
