@@ -169,4 +169,25 @@ divergent def BSTreeIsize.insert
         Result.ok (BSTree.Node curr left right1)
       else Result.ok self
 
+/- [testing_aeneas::{testing_aeneas::BSTree<isize>}#2::fromItems]: loop 0:
+   Source: 'src/lib.rs', lines 134:8-137:9 -/
+divergent def BSTreeIsize.fromItems_loop
+  {N : Usize} (items : Array Isize N) (res : BSTree Isize) (idx : Usize) :
+  Result (BSTree Isize)
+  :=
+  if idx < N
+  then
+    do
+    let i ← Array.index_usize items idx
+    let res1 ← BSTreeIsize.insert res i
+    let idx1 ← idx + 1#usize
+    BSTreeIsize.fromItems_loop items res1 idx1
+  else Result.ok res
+
+/- [testing_aeneas::{testing_aeneas::BSTree<isize>}#2::fromItems]:
+   Source: 'src/lib.rs', lines 131:4-139:5 -/
+def BSTreeIsize.fromItems
+  {N : Usize} (items : Array Isize N) : Result (BSTree Isize) :=
+  BSTreeIsize.fromItems_loop items BSTree.Nil 0#usize
+
 end testing_aeneas

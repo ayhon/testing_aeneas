@@ -128,6 +128,15 @@ impl BSTree<isize>{
             }
         }
     }
+    fn fromItems<const N: usize>(items: [isize; N]) -> Self {
+        let mut res = BSTree::Nil;
+        let mut idx = 0;
+        while idx < N {
+            res.insert(items[idx]);
+            idx+=1;
+        }
+        return res;
+    }
 }
 
 // #[cfg(test)]
