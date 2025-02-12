@@ -316,34 +316,7 @@ instance: Coe (BSTree α) (Set α) where
 -- NOTE: This refinement is not injective!
 end Translation/- }}} -/
 
-def BSTree.for_all(condition: α -> Bool): BSTree α -> Bool
-| .Nil => true
-| .Node curr left right => condition curr && BSTree.for_all condition left && BSTree.for_all condition right
-
-@[simp]
-theorem for_all_spec{tree: BSTree α}{condition: α -> Bool}
-: BSTree.for_all condition tree ↔ (∀ x ∈ (tree: Set α), condition x)
-:= by 
-  cases tree
-  case Nil => simp [BSTree.for_all, toSpec]
-  case Node curr left right =>
-    simp [BSTree.for_all, toSpec]
-    apply Iff.intro
-    case mp =>
-      intro ⟨curr_cond, left_forall, right_forall⟩
-      simp [for_all_spec] at left_forall right_forall
-      intro x cond
-      /- cases cond <;> simp [*] -- Why doesn't this work? -/
-      match cond with
-      | .inl (.inl h) => simp [*]
-      | .inl (.inr h) => simp [*]
-      | .inr h => simp [*]
-    case mpr =>
-      intro hypot
-      split_conjs
-      · apply hypot; simp
-      · apply for_all_spec.mpr; intro x x_in_left; apply hypot; simp [*]
-      · apply for_all_spec.mpr; intro x x_in_left; apply hypot; simp [*]
+@[simp] def BSTree.for_all(condition: α -> Bool)(tree: BSTree α) := ∀ x ∈ (tree: Set α), condition x
 
 @[simp] def well_formed[LE α][DecidableLE α](l r: α): BSTree α -> Prop
 | .Nil => True
@@ -368,7 +341,7 @@ theorem contains_spec(tree: BSTree Isize)(target: Isize)
   | .Node curr left right => 
     simp 
     simp at well_formed
-    have ⟨left_wf, right_wf, left_inv, right_inv, nonempty⟩ := well_formed
+    obtain ⟨left_wf, right_wf, left_inv, right_inv, nonempty⟩ := well_formed -- Clears away the `well_formed` hypothesis, which is no longer needed
     split
     case isTrue curr_eq_target =>
       simp [curr_eq_target]
@@ -393,7 +366,7 @@ theorem contains_spec(tree: BSTree Isize)(target: Isize)
           intro target_in_left
           have ⟨lb, ub⟩:= left_inv target target_in_left
           have: curr < (target: Int) := by scalar_tac
-          /- scalar_tac -- target_lt_curr & lb should close this, no? -/
+          /- scalar_tac -- Also fails here -/
           have := Trans.trans ub this
           scalar_tac
         simp [this]
