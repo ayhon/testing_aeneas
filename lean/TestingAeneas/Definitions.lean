@@ -8,20 +8,34 @@ set_option linter.unusedVariables false
 
 namespace testing_aeneas
 
+/- [testing_aeneas::max]:
+   Source: 'src/lib.rs', lines 1:0-3:1 -/
+def max (a : I8) (b : I8) : Result I8 :=
+  if a > b
+  then Result.ok a
+  else Result.ok b
+
+/- [testing_aeneas::min]:
+   Source: 'src/lib.rs', lines 4:0-6:1 -/
+def min (a : I8) (b : I8) : Result I8 :=
+  if a < b
+  then Result.ok a
+  else Result.ok b
+
 /- [testing_aeneas::Tree]
-   Source: 'src/lib.rs', lines 1:0-4:1 -/
+   Source: 'src/lib.rs', lines 8:0-11:1 -/
 inductive Tree (T : Type) where
 | Leaf : T → Tree T
 | Branch : Tree T → Tree T → Tree T
 
 /- [testing_aeneas::{testing_aeneas::Tree<T>}::branch]:
-   Source: 'src/lib.rs', lines 7:4-13:5 -/
+   Source: 'src/lib.rs', lines 14:4-20:5 -/
 def Tree.branch
   {T : Type} (left : Tree T) (right : Tree T) : Result (Tree T) :=
   Result.ok (Tree.Branch left right)
 
 /- [testing_aeneas::{testing_aeneas::Tree<T>}::rev]:
-   Source: 'src/lib.rs', lines 15:4-20:5 -/
+   Source: 'src/lib.rs', lines 22:4-27:5 -/
 divergent def Tree.rev {T : Type} (self : Tree T) : Result (Tree T) :=
   match self with
   | Tree.Leaf _ => Result.ok self
@@ -32,7 +46,7 @@ divergent def Tree.rev {T : Type} (self : Tree T) : Result (Tree T) :=
     Tree.branch t t1
 
 /- [testing_aeneas::{testing_aeneas::Tree<T>}::lenght]:
-   Source: 'src/lib.rs', lines 22:4-27:5 -/
+   Source: 'src/lib.rs', lines 29:4-34:5 -/
 divergent def Tree.lenght {T : Type} (self : Tree T) : Result Usize :=
   match self with
   | Tree.Leaf _ => Result.ok 1#usize
@@ -44,33 +58,32 @@ divergent def Tree.lenght {T : Type} (self : Tree T) : Result Usize :=
     i1 + i2
 
 /- [testing_aeneas::BinTree]
-   Source: 'src/lib.rs', lines 30:0-37:1 -/
+   Source: 'src/lib.rs', lines 37:0-44:1 -/
 inductive BinTree (T : Type) where
 | Nil : BinTree T
 | Node : T → BinTree T → BinTree T → BinTree T
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::nil]:
-   Source: 'src/lib.rs', lines 41:4-41:49 -/
+   Source: 'src/lib.rs', lines 48:4-48:49 -/
 def BinTree.nil (T : Type) : Result (BinTree T) :=
   Result.ok BinTree.Nil
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::insert]:
-   Source: 'src/lib.rs', lines 42:4-52:5 -/
+   Source: 'src/lib.rs', lines 49:4-59:5 -/
 divergent def BinTree.insert
   {T : Type} (self : BinTree T) (value : T) : Result (BinTree T) :=
   match self with
   | BinTree.Nil =>
     do
     let bt ← BinTree.nil T
-    let bt1 ← BinTree.nil T
-    Result.ok (BinTree.Node value bt bt1)
+    Result.ok (BinTree.Node value bt bt)
   | BinTree.Node t bt right =>
     do
     let right1 ← BinTree.insert right value
     Result.ok (BinTree.Node t bt right1)
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::size]:
-   Source: 'src/lib.rs', lines 53:4-58:5 -/
+   Source: 'src/lib.rs', lines 60:4-65:5 -/
 divergent def BinTree.size {T : Type} (self : BinTree T) : Result U32 :=
   match self with
   | BinTree.Nil => Result.ok 0#u32
@@ -94,7 +107,7 @@ structure core.cmp.Eq (Self : Type) where
   PartialEqInst : core.cmp.PartialEq Self Self
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::contains]:
-   Source: 'src/lib.rs', lines 60:4-74:5 -/
+   Source: 'src/lib.rs', lines 67:4-81:5 -/
 divergent def BinTree.contains
   {T : Type} (corecmpEqInst : core.cmp.Eq T) (self : BinTree T) (target : T) :
   Result Bool
@@ -114,26 +127,26 @@ divergent def BinTree.contains
       else BinTree.contains corecmpEqInst right target
 
 /- [testing_aeneas::{testing_aeneas::BinTree<T>}#1::reverse]:
-   Source: 'src/lib.rs', lines 76:4-85:5 -/
+   Source: 'src/lib.rs', lines 83:4-92:5 -/
 divergent def BinTree.reverse
   {T : Type} (self : BinTree T) : Result (BinTree T) :=
   match self with
   | BinTree.Nil => Result.ok BinTree.Nil
-  | BinTree.Node value left right =>
+  | BinTree.Node t left right =>
     do
     let left1 ← BinTree.reverse left
     let right1 ← BinTree.reverse right
     let (left2, right2) := core.mem.swap left1 right1
-    Result.ok (BinTree.Node value left2 right2)
+    Result.ok (BinTree.Node t left2 right2)
 
 /- [testing_aeneas::BSTree]
-   Source: 'src/lib.rs', lines 89:0-96:1 -/
+   Source: 'src/lib.rs', lines 96:0-103:1 -/
 inductive BSTree (T : Type) where
 | Nil : BSTree T
 | Node : T → BSTree T → BSTree T → BSTree T
 
 /- [testing_aeneas::{testing_aeneas::BSTree<isize>}#2::contains]:
-   Source: 'src/lib.rs', lines 99:4-111:5 -/
+   Source: 'src/lib.rs', lines 106:4-118:5 -/
 divergent def BSTreeIsize.contains
   (self : BSTree Isize) (target : Isize) : Result Bool :=
   match self with
@@ -147,13 +160,14 @@ divergent def BSTreeIsize.contains
       else BSTreeIsize.contains right target
 
 /- [testing_aeneas::{testing_aeneas::BSTree<isize>}#2::insert]:
-   Source: 'src/lib.rs', lines 112:4-130:5 -/
+   Source: 'src/lib.rs', lines 119:4-137:5 -/
 divergent def BSTreeIsize.insert
   (self : BSTree Isize) (value : Isize) : Result (BSTree Isize) :=
   match self with
   | BSTree.Nil =>
     let (_, self1) :=
-      core.mem.replace BSTree.Nil (BSTree.Node value BSTree.Nil BSTree.Nil)
+      core.mem.replace (Result.ok BSTree.Nil) (BSTree.Node value BSTree.Nil
+        BSTree.Nil)
     Result.ok self1
   | BSTree.Node curr left right =>
     if value < curr
@@ -168,5 +182,164 @@ divergent def BSTreeIsize.insert
         let right1 ← BSTreeIsize.insert right value
         Result.ok (BSTree.Node curr left right1)
       else Result.ok self
+
+/- [testing_aeneas::AVLTree]
+   Source: 'src/lib.rs', lines 140:0-148:1 -/
+inductive AVLTree (T : Type) where
+| Nil : AVLTree T
+| Node : T → AVLTree T → AVLTree T → I8 → AVLTree T
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::contains]:
+   Source: 'src/lib.rs', lines 151:4-164:5 -/
+divergent def AVLTreeIsize.contains
+  (self : AVLTree Isize) (target : Isize) : Result Bool :=
+  match self with
+  | AVLTree.Nil => Result.ok false
+  | AVLTree.Node value left right _ =>
+    if target = value
+    then Result.ok true
+    else
+      if target < value
+      then AVLTreeIsize.contains left target
+      else AVLTreeIsize.contains right target
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::rotateLeft]:
+   Source: 'src/lib.rs', lines 167:4-222:5 -/
+def AVLTreeIsize.rotateLeft (self : AVLTree Isize) : Result (AVLTree Isize) :=
+  match self with
+  | AVLTree.Nil => Result.ok AVLTree.Nil
+  | AVLTree.Node value_out left inner bf_out =>
+    match inner with
+    | AVLTree.Nil => Result.ok (AVLTree.Node value_out left AVLTree.Nil bf_out)
+    | AVLTree.Node value_in middle right bf_in =>
+      do
+      let i ← max bf_in 0#i8
+      let bf_4 ← bf_out - i
+      if bf_4 > 0#i8
+      then
+        do
+        let bf_3 ← bf_in + bf_4
+        let a := AVLTree.Node value_out left middle bf_4
+        Result.ok (AVLTree.Node value_in a right bf_3)
+      else
+        do
+        let bf_3 ← -. bf_in
+        let a := AVLTree.Node value_out left middle bf_4
+        Result.ok (AVLTree.Node value_in a right bf_3)
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::rotateRight]:
+   Source: 'src/lib.rs', lines 224:4-270:5 -/
+def AVLTreeIsize.rotateRight (self : AVLTree Isize) : Result (AVLTree Isize) :=
+  match self with
+  | AVLTree.Nil => Result.ok AVLTree.Nil
+  | AVLTree.Node value_out inner right bf_out =>
+    match inner with
+    | AVLTree.Nil =>
+      Result.ok (AVLTree.Node value_out AVLTree.Nil right bf_out)
+    | AVLTree.Node value_in left middle bf_in =>
+      do
+      let i ← min bf_in 0#i8
+      let bf_4 ← bf_out - i
+      if bf_4 >= 0#i8
+      then
+        let a := AVLTree.Node value_out middle right bf_4
+        Result.ok (AVLTree.Node value_in left a bf_in)
+      else
+        do
+        let bf_3 ← bf_in + bf_4
+        let a := AVLTree.Node value_out middle right bf_4
+        Result.ok (AVLTree.Node value_in left a bf_3)
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::balance_factor]:
+   Source: 'src/lib.rs', lines 271:4-276:5 -/
+def AVLTreeIsize.balance_factor (self : AVLTree Isize) : Result I8 :=
+  match self with
+  | AVLTree.Nil => Result.ok 0#i8
+  | AVLTree.Node _ _ _ bf => Result.ok bf
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::rebalance]:
+   Source: 'src/lib.rs', lines 278:4-328:5 -/
+def AVLTreeIsize.rebalance (self : AVLTree Isize) : Result (AVLTree Isize) :=
+  match self with
+  | AVLTree.Nil => Result.ok AVLTree.Nil
+  | AVLTree.Node value left right balance_factor =>
+    if balance_factor = 2#i8
+    then
+      do
+      let i ← AVLTreeIsize.balance_factor left
+      if i = 1#i8
+      then AVLTreeIsize.rotateRight (AVLTree.Node value left right 2#i8)
+      else
+        if i = (-1)#i8
+        then
+          do
+          let a ← AVLTreeIsize.rotateLeft left
+          AVLTreeIsize.rotateRight (AVLTree.Node value a right 2#i8)
+        else Result.ok self
+    else
+      if balance_factor = (-2)#i8
+      then
+        do
+        let i ← AVLTreeIsize.balance_factor right
+        if i = (-1)#i8
+        then AVLTreeIsize.rotateLeft (AVLTree.Node value left right (-2)#i8)
+        else
+          if i = 1#i8
+          then
+            do
+            let a ← AVLTreeIsize.rotateRight right
+            AVLTreeIsize.rotateLeft (AVLTree.Node value left a (-2)#i8)
+          else Result.ok self
+      else Result.ok self
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::insertAndWarn]:
+   Source: 'src/lib.rs', lines 330:4-364:5 -/
+divergent def AVLTreeIsize.insertAndWarn
+  (self : AVLTree Isize) (value : Isize) : Result ((AVLTree Isize) × Bool) :=
+  match self with
+  | AVLTree.Nil =>
+    Result.ok (AVLTree.Node value AVLTree.Nil AVLTree.Nil 0#i8, false)
+  | AVLTree.Node curr left right bf =>
+    if value != curr
+    then
+      if value < curr
+      then
+        do
+        let p ← AVLTreeIsize.insertAndWarn left value
+        let (res, did_height_increase) := p
+        if did_height_increase
+        then
+          do
+          let bf1 ← bf + 1#i8
+          if bf1 = 2#i8
+          then do
+               let a ← AVLTreeIsize.rebalance res
+               Result.ok (a, false)
+          else Result.ok p
+        else Result.ok p
+      else
+        do
+        let p ← AVLTreeIsize.insertAndWarn right value
+        let (res, did_height_increase) := p
+        if did_height_increase
+        then
+          do
+          let bf1 ← bf - 1#i8
+          if bf1 = (-2)#i8
+          then do
+               let a ← AVLTreeIsize.rebalance res
+               Result.ok (a, false)
+          else Result.ok p
+        else Result.ok p
+    else Result.ok (self, false)
+
+/- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::insert]:
+   Source: 'src/lib.rs', lines 366:4-368:5 -/
+def AVLTreeIsize.insert
+  (self : AVLTree Isize) (value : Isize) : Result (AVLTree Isize) :=
+  do
+  let p ← AVLTreeIsize.insertAndWarn self value
+  let (a, _) := p
+  Result.ok a
 
 end testing_aeneas
