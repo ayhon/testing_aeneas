@@ -34,7 +34,7 @@ def BSTree.rotateRight: BSTree α -> BSTree α
  
 -/
 def BSTree.rotateLeft: BSTree α -> BSTree α
-| Node v₂ A (Node v₁ B C) => Node v₁ (Node v₂ A B) C
+| Node v₁ A (Node v₂ B C) => Node v₂ (Node v₁ A B) C
 | otherwise => otherwise
 
 @[simp] def BSTree.balanced: BSTree α -> Prop
