@@ -17,24 +17,24 @@ namespace Spec/- {{{ -/
           Rotate right
 
          v₁             v₂ 
-      v₂    E   -->   A    v₁ 
-    A   B                 B  E
+      v₂    C   -->   A    v₁ 
+    A   B                 B  C
  
 -/
 def BSTree.rotateRight: BSTree α -> BSTree α
-| Node v₁ (Node v₂ A B) E => Node v₂ A (Node v₁ B E)
+| Node v₁ (Node v₂ A B) C => Node v₂ A (Node v₁ B C)
 | otherwise => otherwise
 
 /-
           Rotate left
 
-      v₂                  v₁  
-    A    v₁    -->     v₂    E
-        B  E         A   B    
+      v₁                  v₂  
+    A    v₂    -->     v₁    C
+        B  C         A   B    
  
 -/
 def BSTree.rotateLeft: BSTree α -> BSTree α
-| Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E
+| Node v₂ A (Node v₁ B C) => Node v₁ (Node v₂ A B) C
 | otherwise => otherwise
 
 @[simp] def BSTree.balanced: BSTree α -> Prop
