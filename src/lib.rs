@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 fn max(a: i8, b: i8) -> i8 {
     if a > b { a } else { b }
 }
@@ -174,49 +176,39 @@ impl AVLTree<isize>{
                              * if middle.height < right.height (bf_in < 0) then left.height - middle.height
                              */
                 left,
-                right: inner
-            } => { 
-                match *inner {
-                    Self::Node {
-                        value: value_in,
-                        bf: bf_in, // middle.height - right.height
-                        left: middle,
-                        right,
-                    } => {
-                       /* bf_4 := left.height - middle.height
-                        * if bf_in <= 0 then bf_out
-                        * if bf_in > 0 then bf_out - bf_in
-                        * generally, bf_out - max(bf_in, 0)
-                        */
-                        let bf_4 = bf_out - max(bf_in, 0);
-                       /* bf_3 := max(left.height, middle.height) - right.height
-                        * if left.height > middle.height (bf_4 > 0) then 
-                        *   left.height - right.height = 
-                        *    = (middle.height - right.height) + (left.height - middle.right) =
-                        *    =              bf_in             +            bf_4
-                        * if left.height < middle.height (bf_4 < 0) then middle.height - right.height (-bf_in)
-                        */
-                        let bf_3 = if bf_4 > 0 { bf_in + bf_4 } else { -bf_in };
-                        Self::Node {
-                            value: value_in,
-                            bf: bf_3,                     
-                            left: Box::new(Self::Node {
-                                value: value_out,
-                                bf: bf_4, 
-                                left,
-                                right: middle
-                            }),
-                            right,
-                        }
-                    }
-                    _ => Self::Node { // Unchanged
-                            value: value_out,
-                            bf: bf_out,                     
-                            left,
-                            right: Box::new(Self::Nil),
-                        }
+                right: box Self::Node {
+                    value: value_in,
+                    bf: bf_in, // middle.height - right.height
+                    left: middle,
+                    right,
+                },
+            } => {
+                /* bf_4 := left.height - middle.height
+                * if bf_in <= 0 then bf_out
+                * if bf_in > 0 then bf_out - bf_in
+                * generally, bf_out - max(bf_in, 0)
+                */
+                let bf_4 = bf_out - max(bf_in, 0);
+                /* bf_3 := max(left.height, middle.height) - right.height
+                * if left.height > middle.height (bf_4 > 0) then 
+                *   left.height - right.height = 
+                *    = (middle.height - right.height) + (left.height - middle.right) =
+                *    =              bf_in             +            bf_4
+                * if left.height < middle.height (bf_4 < 0) then middle.height - right.height (-bf_in)
+                */
+                let bf_3 = if bf_4 > 0 { bf_in + bf_4 } else { -bf_in };
+                Self::Node {
+                    value: value_in,
+                    bf: bf_3,                     
+                    left: Box::new(Self::Node {
+                        value: value_out,
+                        bf: bf_4, 
+                        left,
+                        right: middle
+                    }),
+                    right,
                 }
-            },
+            }
             _ => self,
         }
     }
@@ -226,48 +218,39 @@ impl AVLTree<isize>{
             Self::Node{
                 value: value_out,
                 bf: bf_out, // max(left.height, middle.height) - right.height
-                left: inner,
-                right
-            } => { 
-                match *inner {
-                    Self::Node {
+                left: box Self::Node {
                         value: value_in,
                         bf: bf_in, // left.height - middle.height
                         left,
                         right: middle,
-                    } => {
-                        // bf_4 = m - r
-                        // if l > m (bf_in > 0) then bf_out - bf_in
-                        // if l < m (bf_in < 0) then bf_out
-                        // generally, bf_out - min(bf_in, 0)
-                        let bf_4 = bf_out - min(bf_in, 0);
-                        // bf_3 = l - max(m,r)
-                        // if m > r (bf_4 > 0) then l - m (bf_in)
-                        // if m < r (bf_4 < 0) then l - r  = (l - m) + (m - r) = bf_in + bf_4
-                        let bf_3 = if bf_4 >= 0 { bf_in } else {bf_in + bf_4};
-                        Self::Node {
-                            value: value_in,
-                            bf: bf_3, // left.height - max(middle.height, right.height)
-                            left,
-                            right: Box::new(Self::Node {
-                                value: value_out,
-                                bf: bf_4,  // middle.height - right.height
-                                left: middle,
-                                right,
-                            }),
-                        }
-                    }
-                    _ => Self::Node { // unchanged
-                            value: value_out,
-                            bf: bf_out,
-                            left: Box::new(Self::Nil),
-                            right,
-                        }
+                    },
+                right
+            }=> {
+                // bf_4 = m - r
+                // if l > m (bf_in > 0) then bf_out - bf_in
+                // if l < m (bf_in < 0) then bf_out
+                // generally, bf_out - min(bf_in, 0)
+                let bf_4 = bf_out - min(bf_in, 0);
+                // bf_3 = l - max(m,r)
+                // if m > r (bf_4 > 0) then l - m (bf_in)
+                // if m < r (bf_4 < 0) then l - r  = (l - m) + (m - r) = bf_in + bf_4
+                let bf_3 = if bf_4 >= 0 { bf_in } else {bf_in + bf_4};
+                Self::Node {
+                    value: value_in,
+                    bf: bf_3, // left.height - max(middle.height, right.height)
+                    left,
+                    right: Box::new(Self::Node {
+                        value: value_out,
+                        bf: bf_4,  // middle.height - right.height
+                        left: middle,
+                        right,
+                    }),
                 }
             }
             _ => self,
         }
     }
+
     fn balance_factor(&self) -> i8 {
         match self {
             Self::Nil => 0,
@@ -276,7 +259,39 @@ impl AVLTree<isize>{
     }
 
     fn rebalance(self) -> Self {
+        /* TODO: Ask Nadrieril about this ↓ */
+
+        // match self {
+        //     node@Self::Node { bf, ref left, .. }  // LEFT-LEFT
+        //     if bf == 2 && left.balance_factor() == 1  => {
+        //         node.rotateRight()
+        //     }
+        //     Self::Node { bf, left, right, value }  // LEFT-RIGHT
+        //     if bf == 2 && left.balance_factor() == -1  => {
+        //         Self::Node {
+        //             value,
+        //             bf,
+        //             left: Box::new(left.rotateLeft()),
+        //             right,
+        //         }.rotateRight()
+        //     }
+        //     Self::Node { bf, right, left, value }  // RIGHT-LEFT
+        //     if bf == -2 && right.balance_factor() == 1  => {
+        //         Self::Node {
+        //             value,
+        //             bf,
+        //             left: Box::new(left.rotateRight()),
+        //             right,
+        //         }.rotateLeft()
+        //     }
+        //     node@Self::Node { bf, ref right, .. }  // RIGHT-RIGHT
+        //     if bf == -2 && right.balance_factor() == -1  => {
+        //         node.rotateLeft()
+        //     }
+        //     _ => self
+        // }
         match self {
+            // TODO: Think about this a bit more
             Self::Node {
                 value,
                 bf: balance_factor,
