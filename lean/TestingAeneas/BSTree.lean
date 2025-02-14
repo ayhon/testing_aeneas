@@ -3,10 +3,16 @@ import Aeneas
 
 open Aeneas.Std
 
+namespace testing_aeneas
+end testing_aeneas
 
 namespace Spec/- {{{ -/
+inductive BSTree(α : Type) where
+| Nil 
+| Node (value: α)(left right: BSTree α)
+
 open testing_aeneas
-def contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
+def BSTree.contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
 | .Nil, _=> false
 | .Node curr left right, target => 
     if target == curr then
@@ -16,7 +22,7 @@ def contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
     else 
       contains right target 
 
-def insert[BEq α][LT α][DecidableLT α](value: α): BSTree α -> BSTree α
+def BSTree.insert[BEq α][LT α][DecidableLT α](value: α): BSTree α -> BSTree α
 | .Nil => .Node value .Nil .Nil
 | .Node curr left right =>
     if value < curr then
@@ -25,60 +31,40 @@ def insert[BEq α][LT α][DecidableLT α](value: α): BSTree α -> BSTree α
       .Node curr left (insert value right)
     else 
       .Node curr left right
-end Spec/- }}} -/
 
-open testing_aeneas
-section Translation/- {{{ -/
-@[simp] def testing_aeneas.BSTree.toSpec: BSTree α -> Set α
+@[simp] def BSTree.toSpec: BSTree α -> Set α
 | .Nil => ∅
 | .Node v left right => {v} ∪ (toSpec left) ∪ (toSpec right)
+instance: Coe (Spec.BSTree α) (Set α) where coe := Spec.BSTree.toSpec
 
-instance: Coe (BSTree α) (Set α) where
-  coe := BSTree.toSpec
-end Translation/- }}} -/
-
-namespace Lemmas/- {{{ -/
-attribute [-simp] Bool.exists_bool
-attribute [local simp] Spec.contains
-attribute [local simp] Spec.insert
-open BSTree (toSpec)
-
-section TreeRefinement/- {{{ -/
-
-@[pspec]
-theorem tree_contains_spec(tree: BSTree Isize)(target: Isize)
-: ∃ b, 
-    BSTreeIsize.contains tree target = Result.ok b ∧
-    Spec.contains tree target = b
-:= by
-  cases tree <;> rw [BSTreeIsize.contains] <;> simp
-  case Node curr left right =>
-    split_ifs <;> (try progress with tree_contains_spec as ⟨in_left, in_left_spec⟩) <;> simp [*]
-
-@[pspec]
-theorem tree_insert_spec(tree: BSTree Isize)(value: Isize)
-: ∃ tree',
-    BSTreeIsize.insert tree value = Result.ok tree' ∧
-    Spec.insert value tree = tree'
-:= by
-  cases tree <;> rw [BSTreeIsize.insert] <;> simp
-  case Node curr left right =>
-    split_ifs <;> (try progress with tree_insert_spec as ⟨tree', tree'_spec⟩) <;> simp [*]
-
-end TreeRefinement/- }}} -/
-
-section SetRefinement/- {{{ -/
-
-@[simp] def well_formed[PartialOrder α][IsTotal α (·<=·)]: BSTree α -> Prop
+@[simp] def BSTree.well_formed[PartialOrder α][IsTotal α (·<=·)]: BSTree α -> Prop
 | .Nil => True
 | .Node curr left right =>
   well_formed left ∧ well_formed right ∧ 
     (∀ x ∈ (left: Set α),  x < curr) ∧
     (∀ x ∈ (right: Set α), curr < x)
+end Spec/- }}} -/
 
+section Translation/- {{{ -/
+open testing_aeneas
+@[simp] def testing_aeneas.BSTree.toSpec: BSTree α -> Spec.BSTree α
+| .Nil => .Nil
+| .Node v l r => .Node v l.toSpec r.toSpec
+instance: Coe (BSTree α) (Spec.BSTree α) where coe := BSTree.toSpec
+end Translation/- }}} -/
+
+section Lemmas/- {{{ -/
+attribute [-simp] Bool.exists_bool
+attribute [local simp] Spec.BSTree.contains
+attribute [local simp] Spec.BSTree.insert
+open testing_aeneas.BSTree renaming toSpec -> toSet
+open Spec.BSTree (toSpec)
+
+namespace SetRefinement/- {{{ -/
+open Spec
 theorem left_right_disjoint_of_wf[PartialOrder α][IsTotal α (·<=·)]
   {curr: α}{left right: BSTree α}
-: well_formed (.Node curr left right) -> Disjoint (toSpec left) (toSpec right)
+: (BSTree.Node curr left right).well_formed -> Disjoint (toSpec left) (toSpec right)
 := by
   intro ⟨left_wf, right_wf, left_inv, right_inv⟩
   apply disjoint_iff.mpr; simp
@@ -91,8 +77,8 @@ theorem left_right_disjoint_of_wf[PartialOrder α][IsTotal α (·<=·)]
   contradiction
 
 theorem contains_spec{tree: BSTree Isize}(target: Isize)
-: well_formed tree 
--> (Spec.contains tree target ↔ target ∈ (tree : Set Isize))
+: tree.well_formed
+-> (tree.contains target ↔ target ∈ (tree : Set Isize))
 := by 
   intro well_formed
   cases tree <;> simp at *
@@ -103,7 +89,7 @@ theorem contains_spec{tree: BSTree Isize}(target: Isize)
     case pos target_lt_curr =>
       have := contains_spec target left_wf
       /- progress as ⟨left_contains_target, left_contains_target_spec⟩ -/
-      if Spec.contains left target then
+      if left.contains target then
         simp_all
       else
         simp_all
@@ -113,7 +99,7 @@ theorem contains_spec{tree: BSTree Isize}(target: Isize)
     case neg target_ge_curr =>
       have target_ge_curr := (le_of_not_gt target_ge_curr)
       have := contains_spec target right_wf
-      if Spec.contains right target then
+      if right.contains target then
         simp_all
       else
         simp_all
@@ -122,9 +108,9 @@ theorem contains_spec{tree: BSTree Isize}(target: Isize)
         omega
 
 theorem insert_spec(tree: BSTree Isize)(value: Isize)
-: well_formed tree
--> let tree' := Spec.insert value tree
-   insert value (toSpec tree) = ↑tree' ∧ well_formed tree'
+: tree.well_formed
+-> let tree' := tree.insert value
+   insert value (toSpec tree) = ↑tree' ∧ tree'.well_formed
 := by
   cases tree <;> simp
   case Node curr left right =>
@@ -152,5 +138,30 @@ theorem insert_spec(tree: BSTree Isize)(value: Isize)
       simp; split_conjs <;> assumption
 
 end SetRefinement/- }}} -/
+
+namespace TreeRefinement/- {{{ -/
+open testing_aeneas
+
+@[pspec]
+theorem tree_contains_spec(tree: BSTree Isize)(target: Isize)
+: ∃ b, 
+    BSTreeIsize.contains tree target = Result.ok b ∧
+    Spec.BSTree.contains ↑tree target = b
+:= by
+  cases tree <;> rw [BSTreeIsize.contains] <;> simp
+  case Node curr left right =>
+    split_ifs <;> (try progress with tree_contains_spec as ⟨in_left, in_left_spec⟩) <;> simp [*]
+
+@[pspec]
+theorem tree_insert_spec(tree: BSTree Isize)(value: Isize)
+: ∃ tree',
+    BSTreeIsize.insert tree value = Result.ok tree' ∧
+    Spec.BSTree.insert value ↑tree = ↑tree'
+:= by
+  cases tree <;> rw [BSTreeIsize.insert] <;> simp
+  case Node curr left right =>
+    split_ifs <;> (try progress with tree_insert_spec as ⟨tree', tree'_spec⟩) <;> simp [*]
+
+end TreeRefinement/- }}} -/
 
 end Lemmas/- }}} -/
