@@ -1,5 +1,6 @@
 #![feature(box_patterns)]
 
+// use std::cmp::{min,max};
 fn max(a: i8, b: i8) -> i8 {
     if a > b { a } else { b }
 }
@@ -170,33 +171,31 @@ impl AVLTree<isize>{
         match self {
             Self::Node{
                 value: value_out,
-                bf: bf_out, // left.height - max(middle.height, right.height)
-                            /*
-                             * if middle.height > right.height (bf_in > 0) then left.height - right.height
-                             * if middle.height < right.height (bf_in < 0) then left.height - middle.height
-                             */
+                bf: bf_out, // l - max(m,r) - 1
                 left,
                 right: box Self::Node {
                     value: value_in,
-                    bf: bf_in, // middle.height - right.height
+                    bf: bf_in, // m - r
                     left: middle,
                     right,
                 },
             } => {
-                /* bf_4 := left.height - middle.height
-                * if bf_in <= 0 then bf_out
-                * if bf_in > 0 then bf_out - bf_in
+                /* bf_4 := l - m
+                * if bf_in >= 0 then bf_out + 1         
+                *   (m <= r)     (l - m - 1 + 1)
+                * if bf_in > 0  then bf_out - bf_in + 1 
+                *   (m >  r)     (l - r - 1 - m + r + 1)
                 * generally, bf_out - max(bf_in, 0)
                 */
                 let bf_4 = bf_out - max(bf_in, 0);
-                /* bf_3 := max(left.height, middle.height) - right.height
-                * if left.height > middle.height (bf_4 > 0) then 
-                *   left.height - right.height = 
-                *    = (middle.height - right.height) + (left.height - middle.right) =
-                *    =              bf_in             +            bf_4
-                * if left.height < middle.height (bf_4 < 0) then middle.height - right.height (-bf_in)
+                /* bf_3 := 1 + max(l, m) - r
+                * if bf_4 >= 0 then bf_3      =  1 + bf_4    + bf_in
+                *  (l - m)          1 + l - r =  1 + (l - m) + (m - r)
+                * if bf_4 <  0 then 1 + m - r
+                *  (l - m)          1 + bf_in
+                * generally 1 + bf_in + max(bf_4, 0)
                 */
-                let bf_3 = if bf_4 > 0 { bf_in + bf_4 } else { -bf_in };
+                let bf_3 = 1 + bf_in + max(bf_4, 0);
                 Self::Node {
                     value: value_in,
                     bf: bf_3,                     
@@ -217,24 +216,29 @@ impl AVLTree<isize>{
         match self {
             Self::Node{
                 value: value_out,
-                bf: bf_out, // max(left.height, middle.height) - right.height
+                bf: bf_out, // 1 + max(l, m) - r
                 left: box Self::Node {
                         value: value_in,
-                        bf: bf_in, // left.height - middle.height
+                        bf: bf_in, // l - m
                         left,
                         right: middle,
                     },
                 right
             }=> {
                 // bf_4 = m - r
-                // if l > m (bf_in > 0) then bf_out - bf_in
-                // if l < m (bf_in < 0) then bf_out
-                // generally, bf_out - min(bf_in, 0)
-                let bf_4 = bf_out - min(bf_in, 0);
-                // bf_3 = l - max(m,r)
-                // if m > r (bf_4 > 0) then l - m (bf_in)
-                // if m < r (bf_4 < 0) then l - r  = (l - m) + (m - r) = bf_in + bf_4
-                let bf_3 = if bf_4 >= 0 { bf_in } else {bf_in + bf_4};
+                // if bf_in > 0 then bf_out     - bf_in   - 1
+                //   (l > m)        (1 + l - r) - (l - m) - 1
+                // if bf_in < 0 then bf_out     - 1
+                //   (l < m)        (1 + m - r) - 1
+                // generally, bf_out - min(bf_in, 0) - 1
+                let bf_4 = bf_out - min(bf_in, 0) - 1;
+                // bf_3 = l - max(m, r) - 1
+                // if bf_4 > 0 then bf_in - 1
+                //   (m > r)      (l - m) - 1
+                // if bf_4 < 0 then bf_in + bf_4    - 1
+                //   (m < r)      (l - m) + (m - r) - 1
+                // generally, bf_in + min(bf_4, 0) - 1
+                let bf_3 = bf_in + min(bf_4, 0) - 1;
                 Self::Node {
                     value: value_in,
                     bf: bf_3, // left.height - max(middle.height, right.height)
