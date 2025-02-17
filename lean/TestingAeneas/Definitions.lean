@@ -212,11 +212,12 @@ def AVLTreeIsize.rotateLeft (self : AVLTree Isize) : Result (AVLTree Isize) :=
     | AVLTree.Nil => Result.ok self
     | AVLTree.Node value_in middle right bf_in =>
       do
-      let i ← max bf_in 0#i8
-      let bf_4 ← bf_out - i
-      let i1 ← 1#i8 + bf_in
-      let i2 ← max bf_4 0#i8
-      let bf_3 ← i1 + i2
+      let i ← min bf_in 0#i8
+      let i1 ← bf_out - i
+      let bf_4 ← i1 + 1#i8
+      let i2 ← 1#i8 + bf_in
+      let i3 ← max bf_4 0#i8
+      let bf_3 ← i2 + i3
       let a1 := AVLTree.Node value_out left middle bf_4
       Result.ok (AVLTree.Node value_in a1 right bf_3)
 
@@ -230,7 +231,7 @@ def AVLTreeIsize.rotateRight (self : AVLTree Isize) : Result (AVLTree Isize) :=
     | AVLTree.Nil => Result.ok self
     | AVLTree.Node value_in left middle bf_in =>
       do
-      let i ← min bf_in 0#i8
+      let i ← max bf_in 0#i8
       let i1 ← bf_out - i
       let bf_4 ← i1 - 1#i8
       let i2 ← min bf_4 0#i8

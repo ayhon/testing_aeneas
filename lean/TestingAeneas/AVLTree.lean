@@ -185,6 +185,24 @@ theorem min_spec(a b: I8)
   else
     exists b; simp; scalar_tac
 
+theorem balancing_factor_update_rotateLeft(l m r: Int)
+: let bf_out := l - max m r - 1
+  let bf_in  := m - r
+  let bf_4 := l - m
+  let bf_3 := 1 + max l m - r
+  bf_4 = bf_out - bf_in ⊓ 0 + 1 
+  ∧ bf_3 = 1 + bf_in + bf_4 ⊔ 0
+:= by scalar_tac
+
+theorem balancing_factor_update_rotateRight(l m r: Int)
+: let bf_out := 1 + max l m - r
+  let bf_in  := l - m
+  let bf_4 := m - r
+  let bf_3 := l - max m r - 1
+  bf_4 = bf_out - bf_in ⊔ 0 - 1 
+  ∧ bf_3 = bf_in + bf_4 ⊓ 0 - 1
+:= by scalar_tac
+
 @[pspec]
 theorem rotateLeft_spec(tree: AVLTree Isize)
 : ∃ tree',

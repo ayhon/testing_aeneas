@@ -181,18 +181,18 @@ impl AVLTree<isize>{
                 },
             } => {
                 /* bf_4 := l - m
-                * if bf_in >= 0 then bf_out + 1         
-                *   (m <= r)     (l - m - 1 + 1)
-                * if bf_in > 0  then bf_out - bf_in + 1 
-                *   (m >  r)     (l - r - 1 - m + r + 1)
-                * generally, bf_out - max(bf_in, 0)
+                * if bf_in >= 0  then bf_out + 1 
+                *   (m >= r)     (l - m - 1 + 1)
+                * if bf_in <  0 then bf_out - bf_in + 1  
+                *   (m <  r)     (l - r - 1 - m + r + 1)
+                * generally, bf_out - min(bf_in, 0) + 1
                 */
-                let bf_4 = bf_out - max(bf_in, 0);
+                let bf_4 = bf_out - min(bf_in, 0) + 1;
                 /* bf_3 := 1 + max(l, m) - r
                 * if bf_4 >= 0 then bf_3      =  1 + bf_4    + bf_in
-                *  (l - m)          1 + l - r =  1 + (l - m) + (m - r)
+                *      (l >= m)     1 + l - r =  1 + (l - m) + (m - r)
                 * if bf_4 <  0 then 1 + m - r
-                *  (l - m)          1 + bf_in
+                *      (l <  m)     1 + bf_in
                 * generally 1 + bf_in + max(bf_4, 0)
                 */
                 let bf_3 = 1 + bf_in + max(bf_4, 0);
@@ -226,12 +226,12 @@ impl AVLTree<isize>{
                 right
             }=> {
                 // bf_4 = m - r
-                // if bf_in > 0 then bf_out     - bf_in   - 1
-                //   (l > m)        (1 + l - r) - (l - m) - 1
-                // if bf_in < 0 then bf_out     - 1
-                //   (l < m)        (1 + m - r) - 1
-                // generally, bf_out - min(bf_in, 0) - 1
-                let bf_4 = bf_out - min(bf_in, 0) - 1;
+                // if bf_in >= 0 then bf_out     - bf_in   - 1
+                //       (l >= m)    (1 + l - r) - (l - m) - 1
+                // if bf_in <  0 then bf_out     - 1
+                //       (l <  m)    (1 + m - r) - 1
+                // generally, bf_out - max(bf_in, 0) - 1
+                let bf_4 = bf_out - max(bf_in, 0) - 1;
                 // bf_3 = l - max(m, r) - 1
                 // if bf_4 > 0 then bf_in - 1
                 //   (m > r)      (l - m) - 1
