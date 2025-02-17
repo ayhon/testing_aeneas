@@ -12,7 +12,7 @@ inductive BSTree(α : Type) where
 | Node (value: α)(left right: BSTree α)
 
 open testing_aeneas
-def BSTree.contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
+@[simp] def BSTree.contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
 | .Nil, _=> false
 | .Node curr left right, target => 
     if target == curr then
@@ -160,7 +160,7 @@ theorem tree_insert_spec(tree: BSTree Isize)(value: Isize)
 := by
   cases tree <;> rw [BSTreeIsize.insert] <;> simp
   case Node curr left right =>
-    split_ifs <;> (try progress with tree_insert_spec as ⟨tree', tree'_spec⟩) <;> simp [*]
+    split_ifs <;> (try progress with tree_insert_spec) <;> simp [*]
 
 end TreeRefinement/- }}} -/
 

@@ -403,11 +403,15 @@ theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BST
       scalar_tac
 
 
+@[pspec]
 theorem contains_spec(tree: AVLTree Isize)(target: Isize)
 : ∃ b,
     AVLTreeIsize.contains tree target = .ok b ∧
     b = tree.toBS.contains target
-:= sorry
+:= by
+  cases tree <;> rw [AVLTreeIsize.contains] <;> simp
+  case Node curr left right =>
+    split_ifs <;> (try progress with contains_spec) <;> simp [*]
 
 end AVLRefinement
 end Lemmas/- }}} -/
