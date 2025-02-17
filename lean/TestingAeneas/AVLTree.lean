@@ -307,11 +307,10 @@ theorem rebalance_spec(tree: AVLTree Isize)
     case pos bfX_is_2 =>
       subst bfX_is_2
       simp [AVLTreeIsize.balance_factor]
-      cases Z <;> simp
+      cases Z <;> simp at *
       case Nil =>
-        simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+        simp [BSTree.rebalance, *]
       case Node vZ A Y bfZ =>
-        simp at *
         obtain ⟨bfZ_spec, A_inv, Y_inv⟩ := Z_avl
         split_ifs
         case pos bfZ_is_1 =>
@@ -335,16 +334,13 @@ theorem rebalance_spec(tree: AVLTree Isize)
           unfold BSTree.rebalance
           simp [*] at *
         case neg _ _ =>
-          simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+          simp [*] at *
     case pos _ bfX_is_n2 =>
       -- NOTE: I expect this to be symmetrical to the previous case
       subst bfX_is_n2
       simp [AVLTreeIsize.balance_factor]
-      cases D <;> simp
-      case Nil =>
-        simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+      cases D <;> simp at *
       case Node vD A Y bfD =>
-        simp at *
         obtain ⟨bfD_spec, A_inv, Y_inv⟩ := D_avl
         split_ifs
         case pos bfD_is_1 =>
@@ -368,10 +364,10 @@ theorem rebalance_spec(tree: AVLTree Isize)
           unfold BSTree.rebalance
           simp [*] at *
         case neg _ _ =>
-          simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+          simp at *; simp [BSTree.rebalance, *] -- NOTE: Same as bellow `neg` branch
     case neg bf1_ne_2 bf1_ne_n2 =>
       -- Here I simply have to show that BSTree does nothing as well.
-      simp_all [BSTree.rebalance]
+      simp at *; simp [BSTree.rebalance, *]
 
 
 theorem rebalance_correct[PartialOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
