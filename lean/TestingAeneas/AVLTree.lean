@@ -290,10 +290,89 @@ theorem rotateRight_spec(tree: AVLTree Isize)
 
 @[pspec]
 theorem rebalance_spec(tree: AVLTree Isize)
-: ∃ tree',
+: tree.invariant
+-> (tree : BSTree Isize).balanced
+-> ∃ tree',
     AVLTreeIsize.rebalance tree = .ok tree' ∧
-    tree.toBS.rebalance = tree'.toBS
-:= sorry
+    tree'.toBS = tree.toBS.rebalance
+:= by
+  intro avl_inv balanced
+  rw [AVLTreeIsize.rebalance.eq_def]
+  split
+  case _ =>
+    simp [BSTree.rebalance]
+  case _ X vX Z D bfX =>
+    obtain ⟨bfX_spec, Z_avl, D_avl⟩ := avl_inv
+    split_ifs 
+    case pos bfX_is_2 =>
+      subst bfX_is_2
+      simp [AVLTreeIsize.balance_factor]
+      cases Z <;> simp
+      case Nil =>
+        simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+      case Node vZ A Y bfZ =>
+        simp at *
+        obtain ⟨bfZ_spec, A_inv, Y_inv⟩ := Z_avl
+        split_ifs
+        case pos bfZ_is_1 =>
+          /-
+                 ⟨X⟩
+                Y  ᵈ  >>     Y
+              Z  ᶜ         Z   X
+             ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+          -/
+          subst bfZ_is_1
+          unfold BSTree.rebalance
+          simp [*] at *
+        case pos _ bfZ_is_n1 =>
+          /-
+                X           ⟨X⟩            
+             ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+             ᵃ  Y        Z  ᶜ          Z   X
+               ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+          -/
+          subst bfZ_is_n1
+          unfold BSTree.rebalance
+          simp [*] at *
+        case neg _ _ =>
+          simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+    case pos _ bfX_is_n2 =>
+      -- NOTE: I expect this to be symmetrical to the previous case
+      subst bfX_is_n2
+      simp [AVLTreeIsize.balance_factor]
+      cases D <;> simp
+      case Nil =>
+        simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+      case Node vD A Y bfD =>
+        simp at *
+        obtain ⟨bfD_spec, A_inv, Y_inv⟩ := D_avl
+        split_ifs
+        case pos bfD_is_1 =>
+          /- NOTE: Letters not accurate due to copy-paste
+                 ⟨X⟩
+                Y  ᵈ  >>     Y
+              Z  ᶜ         Z   X
+             ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+          -/
+          subst bfD_is_1
+          unfold BSTree.rebalance
+          simp [*] at *
+        case pos _ bfD_is_n1 =>
+          /- NOTE: Letters not accurate due to copy-paste
+                X           ⟨X⟩            
+             ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+             ᵃ  Y        Z  ᶜ          Z   X
+               ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+          -/
+          subst bfD_is_n1
+          unfold BSTree.rebalance
+          simp [*] at *
+        case neg _ _ =>
+          simp_all [BSTree.rebalance] -- NOTE: Same as bellow `neg` branch
+    case neg bf1_ne_2 bf1_ne_n2 =>
+      -- Here I simply have to show that BSTree does nothing as well.
+      simp_all [BSTree.rebalance]
+
 
 theorem rebalance_correct[PartialOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
 : left.is_avl
