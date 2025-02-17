@@ -109,14 +109,14 @@ end Translation/- }}} -/
 @[simp] def testing_aeneas.AVLTree.invariant: AVLTree α -> Prop
 | .Nil => true
 | .Node _ left right bf => 
-    bf = (left.toBS.height - right.toBS.height : Int) ∧
+    (left.toBS.height - right.toBS.height : Int) = bf ∧
     left.invariant ∧ right.invariant
-
 
 section Lemmas/- {{{ -/
 namespace AVLRefinement
 open testing_aeneas hiding max min BSTree
 open Spec
+attribute [local simp] AVLTree.toBS
 
 /- theorem valid_right_left_eq(curr: α)(left right: BSTree α) -/
 /- : let tree := BSTree.Node curr left right -/
@@ -193,6 +193,26 @@ theorem min_spec(a b: I8)
   else
     exists b; simp; scalar_tac
 
+@[pspec]
+theorem negate_spec(a: I8)
+: a > I8.min + 1
+-> ∃ v,
+    -.a = .ok v ∧ v = -a.val
+:= by
+  intro bnd
+  have hMin: I8.min = -I8.max -1 := by simp [I8.min, I8.max]
+  have hMax: I8.max  = -I8.min -1 := by simp [I8.min, I8.max]
+  simp [HNeg.hNeg, Scalar.neg, -Scalar.check_bounds, Scalar.tryMk, Scalar.tryMkOpt, Scalar.cMin, Scalar.min, Scalar.cMax, Scalar.max]
+  split <;> simp [*]
+  case _ v heq =>
+    simp at *
+    obtain ⟨h, pp⟩ := heq
+    simp [Scalar.ofIntCore] at pp
+    rw [<-pp]
+  case _ v heq =>
+    simp at heq
+    scalar_tac
+
 theorem balancing_factor_update_rotateLeft(l m r: Int)
 : let bf_out := l - max m r - 1
   let bf_in  := m - r
@@ -213,17 +233,60 @@ theorem balancing_factor_update_rotateRight(l m r: Int)
 
 @[pspec]
 theorem rotateLeft_spec(tree: AVLTree Isize)
-: ∃ tree',
+: tree.invariant
+-> (tree: BSTree Isize).balanced
+-> ∃ tree',
     AVLTreeIsize.rotateLeft tree = .ok tree' ∧
-    (tree: BSTree Isize).rotateLeft = tree'
-:= sorry
+    tree' = (tree: BSTree Isize).rotateLeft ∧
+    tree'.invariant
+:= by
+  rw [AVLTreeIsize.rotateLeft.eq_def]
+  intro tree_inv balanced
+  split <;> simp [BSTree.rotateLeft]; split <;> simp [AVLTree.invariant] at *; try assumption
+  case _ self v₁ A bf₁ inner v₂ B C bf₂ =>
+    obtain ⟨bf₁_spec, A_inv, bf₂_spec, B_inv, C_inv⟩ := tree_inv
+    obtain ⟨bf₁_inv, -, bf₂_inv, -⟩ := balanced
+
+    progress as ⟨aux, aux_spec⟩
+    progress as ⟨aux2, aux2_spec⟩
+    progress as ⟨bf₄, bf₄_spec⟩
+    simp only [aux_spec, aux2_spec] at bf₄_spec; clear aux aux_spec aux2 aux2_spec
+
+    progress as ⟨aux, aux_spec⟩
+    progress as ⟨aux2, aux2_spec⟩
+    progress as ⟨bf₃, bf₃_spec⟩
+    simp only [aux_spec, aux2_spec] at bf₃_spec; clear aux aux_spec aux2 aux2_spec
+
+    simp [*]; split_conjs <;> scalar_tac
 
 @[pspec]
 theorem rotateRight_spec(tree: AVLTree Isize)
-: ∃ tree',
+: tree.invariant
+-> (tree: BSTree Isize).balanced
+-> ∃ tree',
     AVLTreeIsize.rotateRight tree = .ok tree' ∧
-    (tree: BSTree Isize).rotateRight = tree'
-:= sorry
+    tree' = (tree: BSTree Isize).rotateRight ∧
+    tree'.invariant
+:= by -- NOTE: Symmetrical to rotateLeft_spec
+  rw [AVLTreeIsize.rotateRight.eq_def]
+  intro tree_inv balanced
+  split <;> simp [BSTree.rotateRight]; split <;> simp [AVLTree.invariant] at *; try assumption
+  case _ self v₁ A bf₁ inner v₂ B C bf₂ =>
+    obtain ⟨bf₁_inv, bf₂_inv, -⟩ := balanced
+    obtain ⟨bf₁_spec, bf₂_spec, B_inv, C_inv, A_inv⟩ := tree_inv
+
+    progress as ⟨aux, aux_spec⟩
+    progress as ⟨aux2, aux2_spec⟩
+    progress as ⟨bf₄, bf₄_spec⟩
+    simp only [aux_spec, aux2_spec] at bf₄_spec; clear aux aux_spec aux2 aux2_spec
+
+    progress as ⟨aux, aux_spec⟩
+    progress as ⟨aux2, aux2_spec⟩
+    progress as ⟨bf₃, bf₃_spec⟩
+    simp only [aux_spec, aux2_spec] at bf₃_spec; clear aux aux_spec aux2 aux2_spec
+
+    simp [*]; split_conjs <;> scalar_tac
+
 
 @[pspec]
 theorem rebalance_spec(tree: AVLTree Isize)
