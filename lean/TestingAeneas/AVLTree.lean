@@ -392,9 +392,20 @@ theorem insert_spec(tree: AVLTree Isize)(value: Isize)
     tree'.toBS = tree''.rebalance -- The condition |tree.balancingFactor| <= 1 implies tree''.rebalance = tree''
 := sorry
 
+
 theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BSTree α)
-: (tree.insert a |>.height) <= tree.height + 1
-:= sorry
+: (tree.insert value |>.height) <= tree.height + 1
+:= by
+  cases tree
+  case Nil => simp [BSTree.insert]
+  case Node curr left right =>
+    simp
+    split_ifs <;> simp <;> unfold Nat.max
+    · have :=  insert_height value left
+      scalar_tac -- TODO: I expected scalar_tac to close this as well through transitivity
+    · have := insert_height value right
+      scalar_tac
+
 
 theorem contains_spec(tree: AVLTree Isize)(target: Isize)
 : ∃ b,
