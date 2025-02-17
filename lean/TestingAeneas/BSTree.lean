@@ -22,7 +22,7 @@ def BSTree.contains[BEq α][LT α][DecidableLT α]: BSTree α -> α -> Bool
     else 
       contains right target 
 
-def BSTree.insert[BEq α][LT α][DecidableLT α](value: α): BSTree α -> BSTree α
+@[simp] def BSTree.insert[BEq α][LT α][DecidableLT α](value: α): BSTree α -> BSTree α
 | .Nil => .Node value .Nil .Nil
 | .Node curr left right =>
     if value < curr then
