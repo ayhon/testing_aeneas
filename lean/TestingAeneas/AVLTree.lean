@@ -43,57 +43,66 @@ def BSTree.rotateLeft: BSTree α -> BSTree α
     (left.height - right.height: Int).natAbs ≤ 1 ∧
     left.balanced ∧ right.balanced
 
+@[simp] abbrev BSTree.leftHeavy(tree: BSTree α) := tree.balancingFactor > 0
+
+@[simp] abbrev BSTree.rightHeavy(tree: BSTree α) := tree.balancingFactor < 0
+
 @[simp] abbrev BSTree.is_avl[PartialOrder α][IsTotal α (·≤·)](tree: BSTree α): Prop :=
   tree.balanced ∧ tree.well_formed
 
+-- NOTE: I don't make this definition [simp] because it's a bit finicky and not really
+-- equational. I'd rather handle the unfoldings manually.
 def BSTree.rebalance(tree: BSTree α): BSTree α :=
-  let bf1 := tree.balancingFactor
-  if h: bf1 = 2 then
-    match h2: tree with
-    | Nil => by simp [h2,bf1] at h -- Unreachable
-    | Node value left right =>
-      let bf2 := left.balancingFactor
-      if bf2 = -1 then
-        /-
-              X           ⟨X⟩            
-           ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
-           ᵃ  Y        Z  ᶜ          Z   X
-             ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-        -/
-        
-        Node value left.rotateLeft right |>.rotateRight
-      else if bf2 = 1 then
-        /-
-               ⟨X⟩
-              Y  ᵈ  >>     Y
-            Z  ᶜ         Z   X
-           ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-        -/
-        tree.rotateRight
+  match tree with
+  | Nil => tree
+  | Node value left right =>
+      let bf1 := tree.balancingFactor
+      if bf1 = 2 then
+        match left with
+        | Nil => tree 
+        | Node .. =>
+          let bf2 := left.balancingFactor
+          if bf2 = -1 then
+            /-
+                  X           ⟨X⟩            
+               ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+               ᵃ  Y        Z  ᶜ          Z   X
+                 ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+            -/
+            
+            Node value left.rotateLeft right |>.rotateRight
+          else if bf2 = 1 then
+            /-
+                   ⟨X⟩
+                  Y  ᵈ  >>     Y
+                Z  ᶜ         Z   X
+               ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+            -/
+            tree.rotateRight
+          else tree
+      else if bf1 = -2 then
+        match right with
+        | Nil => tree
+        | Node .. =>
+          let bf2 := right.balancingFactor
+          if bf2 = 1 then
+            /-
+                 X         ⟨X⟩           
+               ᵃ  ⟨Z⟩  >>  ᵃ  Y    >>     Y
+                 Y  ᵈ       ᵇ  Z        Z   X
+                ᵇ ᶜ           ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
+            -/
+            Node value left right.rotateRight |>.rotateLeft
+          else if bf2 = -1 then
+            /-
+               ⟨X⟩           
+               ᵃ  Y    >>     Y
+                ᵇ  Z        Z   X
+                  ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
+            -/
+            tree.rotateLeft
+          else tree
       else tree
-  else if h: bf1 = -2 then
-    match h2: tree with
-    | Nil => by simp [h2,bf1] at h -- Unreachable
-    | Node value left right =>
-      let bf2 := right.balancingFactor
-      if bf2 = 1 then
-        /-
-             X         ⟨X⟩           
-           ᵃ  ⟨Z⟩  >>  ᵃ  Y    >>     Y
-             Y  ᵈ       ᵇ  Z        Z   X
-            ᵇ ᶜ           ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
-        -/
-        Node value left right.rotateRight |>.rotateLeft
-      else if bf2 = -1 then
-        /-
-           ⟨X⟩           
-           ᵃ  Y    >>     Y
-            ᵇ  Z        Z   X
-              ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
-        -/
-        tree.rotateLeft
-      else tree
-  else tree
 
 end Spec/- }}} -/
 
@@ -287,6 +296,11 @@ theorem rotateRight_spec(tree: AVLTree Isize)
 
     simp [*]; split_conjs <;> scalar_tac
 
+theorem rotateRight_balanced(tree: BSTree α)
+: tree.balanced
+-> tree.leftHeavy
+-> tree.rotateRight.balanced
+:= by sorry
 
 @[pspec]
 theorem rebalance_spec(tree: AVLTree Isize)
@@ -370,24 +384,171 @@ theorem rebalance_spec(tree: AVLTree Isize)
       simp at *; simp [BSTree.rebalance, *]
 
 
-theorem rebalance_correct[PartialOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
+theorem rebalance_correct_left[PartialOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
 : left.is_avl
 -> right.is_avl
--> (BSTree.Node v left right).well_formed
--> (left.height - right.height: Int).natAbs = 2
--> (BSTree.Node v left right).rebalance.is_avl
+-> (BSTree.Node value left right).well_formed
+-> (left.height - right.height: Int) = 2
+-> left.balancingFactor ≠ 0 -- Look at the note with (`EXTRA_HYPOT`)
+/- -> right.balancingFactor ≠ 0 -- TODO: You can't do both at once! Choose between left or right -/
+-> (BSTree.Node value left right).rebalance.is_avl
+:= by
+  intro left_avl right_avl tree_wf bf1_is_2 bf1_left_ne_0
+  simp
+  apply And.intro <;> simp [BSTree.rebalance, bf1_is_2,]
+  case left => -- Rebalance balances the tree
+    clear tree_wf -- We won't need this, remove to manage number of hypothesis
+    simp [BSTree.is_avl] at left_avl right_avl
+    obtain ⟨left_bal, -⟩ := left_avl
+    obtain ⟨right_bal, -⟩ := right_avl
+    split_ifs
+    case pos bf2_n1 => -- LEFT-RIGHT: bf1 = 2, bf2 = -1
+      /-
+            X           ⟨X⟩            
+         ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+         ᵃ  Y        Z  ᶜ          Z   X
+           ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+      -/
+      generalize H_def: right.height = H at *
+      have left_H: left.height = H + 2 := by scalar_tac
+      cases left_def:left <;> simp [*] at *
+      case Node v1 left1 right1 =>
+        have: right1.height = left1.height + 1 := by scalar_tac
+        have left1_H: left1.height = H := by 
+          simp [this] at left_H
+          scalar_tac
+        simp [*] at *
+        cases h:right1 <;> try simp [BSTree.rotateLeft, BSTree.rotateRight, *] at *
+        case Node v2 left2 right2 =>
+          unfold Nat.max at *
+          scalar_tac
+
+    case pos bf2_ne_1 bf2_1 =>
+      /-
+             ⟨X⟩
+            Y  ᵈ  >>     Y
+          Z  ᶜ         Z   X
+         ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+      -/
+      generalize H_def: right.height = H at *
+      have left_H: left.height = H + 2 := by scalar_tac
+      -- TODO: This part above can probably be abstracted away if we don't use the split_ifs tactic
+      cases left <;> simp [*] at *
+      case Node v1 left1 right1 =>
+        have: left1.height = right1.height + 1 := by scalar_tac
+        simp [this] at left_H
+        have right1_H: right1.height = H := by scalar_tac
+        simp [*] at *; clear left_H
+        simp [BSTree.rotateRight, BSTree.rotateLeft, *]
+        scalar_tac
+    case neg bf2_ne_1 bf2_ne_n1 =>
+      have bf2_0: left.balancingFactor = 0 := by
+        cases left <;> simp at *
+        case Node v1 left1 right1 => scalar_tac
+      -- TODO: This is a contradiction because of `insert_height`.
+      --  If we rebalance after an insertion, we should have that the modified tree
+      --  doesn't differ by more than 1 in the heights of its nodes. This, combined
+      --  with the hypothesis that the original tree was a proper AVL ensures that
+      --  left.balancingFactor ≠ 0
+      -- NOTE: Added hypothesis bf1_left_ne_0 and bf1_right_ne_0 (`EXTRA_HYPOT`)
+      contradiction
+  case right => -- Rebalance balances keeps well_formedness
+    obtain ⟨left_wf, right_wf, left_bs_inv, right_bs_inv⟩ := tree_wf
+    split_ifs
+    case pos bf2_n1 =>
+      simp [BSTree.rotateRight, BSTree.rotateLeft]
+      cases left <;> simp [*] <;> try assumption
+      case Node v1 left1 right1 =>
+        simp at left_wf left_bs_inv bf2_n1
+        cases right1 <;> simp at left_wf
+        case Nil =>
+          simp [*]
+          split_conjs
+          · intro x in_right; apply right_bs_inv; simp [*]
+          · intro x in_left1; apply left_wf.right; simp [*]
+          · intro x x_in_right
+            have: v1 < value := left_bs_inv v1 (by simp)
+            trans value <;> try assumption
+            apply right_bs_inv; assumption
+        case Node v2 left2 right2 =>
+          simp [*]
+          split_conjs
+          · obtain ⟨-, -, -, -, -, left1_inv,-⟩ := left_wf; assumption
+          · 
+            obtain ⟨-, -, -, left2_inv, -, -, right1_bs_inv⟩ := left_wf
+            intro x x_in_right2
+            have: v1 < value := left_bs_inv v1 (by simp)
+            trans value <;> try assumption
+            -- TODO: Draw the case
+            sorry
+          all_goals sorry
+    case pos bf2_ne_1 bf2_n1 =>
+      sorry
+    case neg bf2_ne_1 bf2_ne_n1 =>
+      sorry
+
+theorem rebalance_correct_right[PartialOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
+: left.is_avl
+-> right.is_avl
+-> (BSTree.Node value left right).well_formed
+-> (left.height - right.height: Int) = -2
+-> right.balancingFactor ≠ 0
+-> (BSTree.Node value left right).rebalance.is_avl
 := sorry
 
 @[pspec]
+theorem insert_and_warn{tree: AVLTree Isize}{value: Isize}
+: tree.invariant
+-> tree.toBS.is_avl
+-> ∃ tree' b tree'',
+  AVLTreeIsize.insertAndWarn tree value = .ok (tree', b) ∧
+  tree.toBS.insert value = tree'' ∧
+  b = (tree''.balancingFactor.natAbs == 2) ∧
+  tree''.rebalance = tree'.toBS ∧
+  tree'.toBS.is_avl
+:= by
+  intro avl_inv tree_avl
+  rw [AVLTreeIsize.insertAndWarn]
+  split <;> simp [BSTree.rebalance]
+  case _ v1 left right bf =>
+    split
+    case isTrue v1_eq_value =>
+      have: (left.toBS.height - right.toBS.height: Int).natAbs ≠ 2 := by scalar_tac
+      have: (left.toBS.height - right.toBS.height: Int) ≠ 2 := by scalar_tac
+      have: (right.toBS.height - left.toBS.height: Int) ≠ 2 := by scalar_tac
+      simp [*] at *
+      split_conjs
+      · intro; scalar_tac
+      · scalar_tac
+      · simp [*] -- from direct assumption
+      · simp [*] -- from direct assumption
+      · simp [*] -- from direct assumption
+      · simp [*] -- from direct assumption
+      · obtain ⟨-, -, -, -, -, _, -⟩ := tree_avl
+        assumption
+      · obtain ⟨-, -, -, -, -, -, _⟩ := tree_avl
+        assumption
+    case isFalse v1_ne_value =>
+      split_ifs
+
+      any_goals sorry
+
+
+@[pspec]
 theorem insert_spec(tree: AVLTree Isize)(value: Isize)
-: tree.toBS.is_avl
+: tree.invariant
+-> tree.toBS.is_avl
 -> ∃ tree' tree'',
     AVLTreeIsize.insert tree value = .ok tree' ∧
     tree.toBS.insert value = tree'' ∧
-    tree''.is_avl ∧
+    tree'.toBS.is_avl ∧
     tree'.toBS = tree''.rebalance -- The condition |tree.balancingFactor| <= 1 implies tree''.rebalance = tree''
-:= sorry
-
+:= by
+  intro avl_inv tree_is_avl
+  unfold AVLTreeIsize.insert
+  progress as ⟨tree',      b,      tree'', 
+               tree'_spec, b_spec, tree''_spec, tree'_avl⟩
+  simp [*]
 
 theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BSTree α)
 : (tree.insert value |>.height) <= tree.height + 1
