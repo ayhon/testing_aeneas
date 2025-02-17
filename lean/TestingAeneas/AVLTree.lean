@@ -374,7 +374,7 @@ theorem rebalance_correct[PartialOrder α][IsTotal α (·≤·)](value: α)(left
 : left.is_avl
 -> right.is_avl
 -> (BSTree.Node v left right).well_formed
--> |(left.height - right.height: Int)| = 2
+-> (left.height - right.height: Int).natAbs = 2
 -> (BSTree.Node v left right).rebalance.is_avl
 := sorry
 
