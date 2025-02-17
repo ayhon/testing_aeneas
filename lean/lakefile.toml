@@ -1,13 +1,8 @@
 name = "TestingAeneas"
 version = "0.1.0"
-defaultTargets = ["testingaeneas"]
 
 [[lean_lib]]
 name = "TestingAeneas"
-
-[[lean_exe]]
-name = "testingaeneas"
-root = "Main"
 
 [[require]]
 name = "aeneas"
