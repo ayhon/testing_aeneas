@@ -40,7 +40,7 @@ def BSTree.rotateLeft: BSTree α -> BSTree α
 @[simp] def BSTree.balanced: BSTree α -> Prop
 | Nil => true
 | Node _ left right =>
-    |(left.height: Int) - right.height| ≤ 1 ∧
+    (left.height - right.height: Int).natAbs ≤ 1 ∧
     left.balanced ∧ right.balanced
 
 @[simp] abbrev BSTree.is_avl[PartialOrder α][IsTotal α (·≤·)](tree: BSTree α): Prop :=
