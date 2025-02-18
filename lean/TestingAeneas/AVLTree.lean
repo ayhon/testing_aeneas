@@ -100,6 +100,9 @@ def BSTree.rebalance(tree: BSTree α): BSTree α :=
           else tree
       else tree
 
+@[simp] def BSTree.symm: BSTree α -> BSTree α
+| Nil => Nil
+| Node v left right => Node v right.symm left.symm
 end Spec/- }}} -/
 
 section Translation/- {{{ -/
@@ -122,6 +125,22 @@ namespace AVLRefinement
 open testing_aeneas hiding max min BSTree
 open Spec
 attribute [local simp] AVLTree.toBS
+
+@[simp]
+theorem symm_symm(tree: BSTree α)
+: tree.symm.symm = tree
+:= by
+  cases tree <;> simp
+  split_conjs <;> apply symm_symm
+
+theorem rotateRight_of_symm_rotateLeft_symm(tree: BSTree α)
+: tree.rotateRight = tree.symm.rotateLeft.symm
+:= by
+  simp [BSTree.rotateRight]
+  cases tree
+  case Nil => simp [BSTree.rotateLeft]
+  case Node v₁ inner C =>
+    cases inner <;> simp [BSTree.rotateLeft]
 
 /- theorem valid_right_left_eq(curr: α)(left right: BSTree α) -/
 /- : let tree := BSTree.Node curr left right -/
