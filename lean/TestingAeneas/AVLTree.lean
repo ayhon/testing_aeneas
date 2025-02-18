@@ -676,16 +676,81 @@ theorem rebalance_correct_right[LinearOrder α][IsTotal α (·≤·)](value: α)
       · unfold BSTree.well_formed; split_conjs <;> try assumption
       · unfold BSTree.well_formed; split_conjs <;> try assumption
 
+theorem unnecessary_rebalance_is_id(tree: BSTree α)
+: tree.balancingFactor.natAbs ≠ 2
+-> tree.rebalance = tree
+:= by
+  cases tree
+  case Nil => simp [BSTree.rebalance]
+  case Node v left right =>
+    simp; intro abs_bf_ne_2
+    have bf_ne_2: (left.height - right.height: Int) ≠ 2 := by scalar_tac
+    have bf_ne_n2: (left.height - right.height: Int) ≠ -2 := by scalar_tac
+    simp [BSTree.rebalance, bf_ne_2, bf_ne_n2]
+
+@[pspec]
+theorem insert_and_warn_spec{tree: AVLTree Isize}(value: Isize)
+: tree.invariant
+-> tree.toBS.is_avl
+-> ∃ tree' b tree'',
+  AVLTreeIsize.insertAndWarn tree value = .ok (tree', b) ∧
+  tree.toBS.insert value = tree'' ∧
+  b = (tree''.balancingFactor.natAbs == 2) ∧
+  tree''.rebalance = tree'.toBS ∧
+  tree'.toBS.is_avl
+:= by
+  intro avl_inv tree_avl
+  rw [AVLTreeIsize.insertAndWarn]
+  split <;> simp [BSTree.rebalance]
+  case _ v1 left right bf =>
+    obtain ⟨⟨bf1_bal, left_bal, right_bal⟩, left_wf, right_wf, left_bst, right_bst⟩ := tree_avl
+    split
+    case isTrue v1_eq_value => -- No value needs to be inserted
+      have: (left.toBS.height - right.toBS.height: Int).natAbs ≠ 2 := by scalar_tac
+      have: (left.toBS.height - right.toBS.height: Int) ≠ 2 := by scalar_tac
+      have: (left.toBS.height - right.toBS.height: Int) ≠ -2 := by scalar_tac
+      simp [*] at *
+      split_conjs
+      · scalar_tac
+      · assumption
+    case isFalse v1_ne_value => -- We need to insert the value in either left or right
+      obtain ⟨bf_def, left_avl_inv, right_avl_inv⟩ := avl_inv
+      split
+      case isTrue value_v1=> -- value < v1
+        have ⟨tree', b, tree'', tree'_spec, tree''_spec, b_spec, tree'_tree'', tree'_avl⟩ := insert_and_warn_spec value left_avl_inv (by simp [left_bal, left_wf])
+        simp [tree'_spec, tree''_spec]
+        cases tree''
+        case Nil =>
+          simp at b_spec; simp [b_spec]
+
+          sorry
+        case Node =>
+          sorry
+      case isFalse v1_value => -- v1 < value
+        have v1_value: v1.val < value := by scalar_tac
+
+
+        sorry
+
+
+      any_goals sorry
+
+
 @[pspec]
 theorem insert_spec(tree: AVLTree Isize)(value: Isize)
-: tree.toBS.is_avl
+: tree.invariant
+-> tree.toBS.is_avl
 -> ∃ tree' tree'',
     AVLTreeIsize.insert tree value = .ok tree' ∧
     tree.toBS.insert value = tree'' ∧
-    tree''.is_avl ∧
+    tree'.toBS.is_avl ∧
     tree'.toBS = tree''.rebalance -- The condition |tree.balancingFactor| <= 1 implies tree''.rebalance = tree''
-:= sorry
-
+:= by
+  intro avl_inv tree_is_avl
+  unfold AVLTreeIsize.insert
+  progress as ⟨tree',      b,      tree'', 
+               tree'_spec, b_spec, tree''_spec, tree'_avl⟩
+  simp [*]
 
 theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BSTree α)
 : (tree.insert value |>.height) <= tree.height + 1
