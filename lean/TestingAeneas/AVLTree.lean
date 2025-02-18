@@ -694,12 +694,11 @@ theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BST
   case Nil => simp [BSTree.insert]
   case Node curr left right =>
     simp
-    split_ifs <;> simp <;> unfold Nat.max
-    · have :=  insert_height value left
-      scalar_tac -- TODO: I expected scalar_tac to close this as well through transitivity
+    split_ifs <;> simp [Nat.max]
+    · have := insert_height value left
+      scalar_tac
     · have := insert_height value right
       scalar_tac
-
 
 @[pspec]
 theorem contains_spec(tree: AVLTree Isize)(target: Isize)
