@@ -245,6 +245,57 @@ theorem rotateLeft_preserves_contains[LinearOrder α]{tree: BSTree α}{target: �
         subst this
         simp [ne_of_lt v2_v1, not_lt_of_ge (le_of_lt v2_v1)]
 
+theorem rotateRight_preserves_contains[LinearOrder α]{tree: BSTree α}{target: α}
+: tree.well_formed -> -- Since rotate preserves well-formedness, contains is also preserved
+(tree.contains target <-> tree.rotateRight.contains target)
+:= by -- NOTE: Adapted copy-paste from rotateLeft_preserves_contains
+  intro tree_wf 
+  apply Iff.intro
+  case mp => 
+    intro target_in_tree
+    simp [BSTree.rotateRight]
+    split <;> simp [*] at *
+    case _ v2 v1 A B E => -- Node v₂ (Node v₁ A B) E  => Node v₁ (Node v₂ A B) E
+      obtain ⟨A_wf, B_wf, A_inv, B_inv, E_wf, inner_inv, E_inv⟩ := tree_wf
+      have v1_v2 := inner_inv v1 (by simp)
+      if lt_v1: target < v1 then
+        have: target < v2 := Trans.trans lt_v1 v1_v2
+        simp [this, lt_v1, ne_of_lt this, ne_of_lt lt_v1] at *
+        assumption
+      else if gt_v1: target > v1 then
+        if lt_v2: target < v2 then
+          simp [*] at *; obtain _ | (_ | _) := target_in_tree <;> repeat (first | (try left); assumption | right)
+        else if gt_v2: target > v2 then
+          simp [*] at *; right; assumption
+        else
+          have: target = v2 := eq_of_le_of_le (le_of_not_gt gt_v2) (le_of_not_gt lt_v2)
+          subst this; simp; right; intro h
+          have := ne_of_lt (Trans.trans h v1_v2)
+          contradiction
+      else
+        have: v1 = target := eq_of_le_of_le (le_of_not_gt lt_v1) (le_of_not_gt gt_v1) 
+        subst this; simp
+  case mpr =>
+    simp [BSTree.rotateRight]
+    split <;> simp [*] at *
+    case _ v2 v1 A B E => -- Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E
+      obtain ⟨A_wf, B_wf, A_inv, B_inv, E_wf, inner_inv, E_inv⟩ := tree_wf
+      have v1_v2 := inner_inv v1 (by simp)
+      if lt_v1: target < v1 then
+        have: target < v2 := Trans.trans lt_v1 v1_v2 
+        simp [ne_of_lt lt_v1, ne_of_lt this, this, lt_v1]
+      else if gt_v1: target > v1 then
+        if lt_v2: target < v2 then
+          simp [*, ne_of_lt gt_v1, ne_of_lt lt_v2]
+        else if gt_v2: target > v2 then
+          simp [*, ne_of_lt gt_v1, ne_of_lt gt_v2];
+        else
+          have: target = v2 := eq_of_le_of_le (le_of_not_gt gt_v2) (le_of_not_gt lt_v2)
+          subst this; simp
+      else
+        have: v1 = target := eq_of_le_of_le (le_of_not_gt lt_v1) (le_of_not_gt gt_v1) 
+        subst this; simp [v1_v2]
+
 /- theorem height_node(tree: BSTree α) -/
 /- : tree.height > 0 ↔ tree ≠ .Nil -/
 /- := by cases tree <;> simp -/
