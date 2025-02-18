@@ -76,9 +76,9 @@ theorem left_right_disjoint_of_wf[PartialOrder α][IsTotal α (·<=·)]
   have := lt_irrefl x
   contradiction
 
-theorem contains_spec{tree: BSTree Isize}(target: Isize)
+theorem contains_spec[BEq α][LawfulBEq α][LinearOrder α][DecidableLT α][IsTotal α (· ≤ ·)]{tree: BSTree α}(target: α)
 : tree.well_formed
--> (tree.contains target ↔ target ∈ (tree : Set Isize))
+-> (tree.contains target ↔ target ∈ (tree : Set α))
 := by 
   intro well_formed
   cases tree <;> simp at *
@@ -95,7 +95,8 @@ theorem contains_spec{tree: BSTree Isize}(target: Isize)
         simp_all
         intro target_in_right
         have := right_inv _ target_in_right
-        omega
+        have := ne_of_lt (Trans.trans this target_lt_curr)
+        contradiction
     case neg target_ge_curr =>
       have target_ge_curr := (le_of_not_gt target_ge_curr)
       have := contains_spec target right_wf
@@ -105,9 +106,10 @@ theorem contains_spec{tree: BSTree Isize}(target: Isize)
         simp_all
         intro target_in_left
         have := left_inv _ target_in_left
-        omega
+        have := ne_of_lt (Trans.trans this target_ge_curr)
+        contradiction
 
-theorem insert_spec(tree: BSTree Isize)(value: Isize)
+theorem insert_spec[BEq α][LinearOrder α][DecidableLT α][IsTotal α (·≤·)](tree: BSTree α)(value: α)
 : tree.well_formed
 -> let tree' := tree.insert value
    insert value (toSpec tree) = ↑tree' ∧ tree'.well_formed
@@ -130,10 +132,9 @@ theorem insert_spec(tree: BSTree Isize)(value: Isize)
       · rw [<-right'_spec]
         simp [Set.insert_union]
       · rw [<-right'_spec]
-        simp [curr_lt_value]
-        assumption
+        simp [curr_lt_value]; assumption
     case neg not_value_lt_curr not_value_gt_curr =>
-      have: curr = value := by scalar_tac
+      have: curr = value := eq_of_le_of_le (not_value_lt_curr) (not_value_gt_curr)
       subst this
       simp; split_conjs <;> assumption
 
