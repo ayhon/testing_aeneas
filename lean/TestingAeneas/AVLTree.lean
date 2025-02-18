@@ -142,33 +142,108 @@ attribute [local simp] AVLTree.toBS
 /-   cases right <;> try contradiction -/
 /-   simp [BSTree.rotateLeft] -/
 
-/- theorem rotateLeft_preserves_wf[PartialOrder α][IsTotal α (·<=·)](tree: BSTree α) -/
-/- : tree.well_formed -> tree.rotateLeft.well_formed -/
-/- := by -/
-/-   simp [BSTree.rotateLeft] -/
-/-   split <;> simp -/
-/-   case _ v₂ A v₁ B E => -- Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E -/
-/-     intro A_wf B_wf E_wf B_inv E_inv A_inv inner_inv -/
-/-     have v_rel: v₂ < v₁ := by apply inner_inv; simp -/
-/-     split_conjs <;> try assumption -/
-/-     · intros; simp [*] -/
-/-     · intros x pred -/
-/-       obtain (h | h) | h := pred <;> try simp [*] -/
-/-       exact Trans.trans (A_inv _ h) v_rel -/
+theorem rotateLeft_preserves_wf[PartialOrder α][IsTotal α (·<=·)]{tree: BSTree α}
+: tree.well_formed <-> tree.rotateLeft.well_formed
+:= by
+  simp [BSTree.rotateLeft]
+  split <;> simp
+  case _ v₂ A v₁ B E => -- Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E
+    intro A_wf B_wf 
+    apply Iff.intro
+    case mp =>
+      intro ⟨E_wf, B_inv, E_inv, A_inv, inner_inv⟩
+      have v_rel: v₂ < v₁ := by apply inner_inv; simp
+      split_conjs <;> try assumption
+      · intros; simp [*]
+      · intros x pred
+        obtain (h | h) | h := pred <;> try simp [*]
+        exact Trans.trans (A_inv _ h) v_rel
+    case mpr =>
+      intro ⟨A_inv,B_inv,E_wf,inner_inv,E_inv⟩
+      have v_rel: v₂ < v₁ := by apply inner_inv; simp
+      split_conjs <;> try assumption
+      · intros; simp [*]
+      · intros x pred
+        obtain (h | h) | h := pred <;> try simp [*]
+        exact Trans.trans v_rel (E_inv _ h)
 
-/- theorem rotateRight_preserves_wf[PartialOrder α][IsTotal α (·<=·)](tree: BSTree α) -/
-/- : tree.well_formed -> tree.rotateRight.well_formed -/
-/- := by -- NOTE: symmetrical to rotateLeft_preserves_wf -/
-/-   simp [BSTree.rotateRight] -/
-/-   split <;> simp -/
-/-   case _ v₁ v₂ A B E => -- Node v₁ (Node v₂ A B) E => Node v₂ A (Node v₁ B E) -/
-/-     intro A_wf B_wf A_inv B_inv E_wf inner_inv E_inv -/
-/-     have v_rel: v₂ < v₁ := by apply inner_inv; simp -/
-/-     split_conjs <;> try assumption -/
-/-     · intros; simp [*] -/
-/-     · intros x pred -/
-/-       obtain (h | h) | h := pred <;> try simp [*] -/
-/-       exact Trans.trans v_rel (E_inv _ h) -/
+theorem rotateRight_preserves_wf[PartialOrder α][IsTotal α (·<=·)]{tree: BSTree α}
+: tree.well_formed <-> tree.rotateRight.well_formed
+:= by -- NOTE: symmetrical to rotateLeft_preserves_wf
+      -- NOTE: FLIP  doesn't help here, because we also need to flip on the order. It'd be 
+  simp [BSTree.rotateRight]
+  split <;> simp
+  case _ v₁ v₂ A B E => -- Node v₁ (Node v₂ A B) E => Node v₂ A (Node v₁ B E)
+    intro A_wf B_wf 
+    apply Iff.intro 
+    case mp =>
+      intro ⟨A_inv,B_inv,E_wf,inner_inv,E_inv⟩
+      have v_rel: v₂ < v₁ := by apply inner_inv; simp
+      split_conjs <;> try assumption
+      · intros; simp [*]
+      · intros x pred
+        obtain (h | h) | h := pred <;> try simp [*]
+        exact Trans.trans v_rel (E_inv _ h)
+    case mpr =>
+      intro ⟨E_wf, B_inv, E_inv, A_inv, inner_inv⟩
+      have v_rel: v₂ < v₁ := by apply inner_inv; simp
+      split_conjs <;> try assumption
+      · intros; simp [*]
+      · intros x pred
+        obtain (h | h) | h := pred <;> try simp [*]
+        exact Trans.trans (A_inv _ h) v_rel
+
+theorem rotateLeft_preserves_contains[LinearOrder α]{tree: BSTree α}{target: α}
+: tree.well_formed -> -- Since rotate preserves well-formedness, contains is also preserved
+(tree.contains target <-> tree.rotateLeft.contains target)
+:= by
+  intro tree_wf 
+  apply Iff.intro
+  case mp =>
+    intro target_in_tree
+    simp [BSTree.rotateLeft]
+    split <;> simp [*] at *
+    case _ v2 A v1 B E => -- Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E
+      obtain ⟨A_wf, B_wf, E_wf, B_inv, E_inv, A_inv, inner_inv⟩ := tree_wf
+      have v2_v1 := inner_inv v1 (by simp)
+      if lt_v1: target < v1 then
+        if lt_v2: target < v2 then
+          simp [*] at *; right; assumption
+        else if gt_v2: target > v2 then
+          simp [*] at *; obtain _ | (_ | _) := target_in_tree <;> repeat (first | (try left); assumption | right)
+        else
+          have: target = v2 := eq_of_le_of_le (le_of_not_gt gt_v2) (le_of_not_gt lt_v2)
+          subst this; simp; right; intro h
+          have := ne_of_lt (Trans.trans h v2_v1)
+          contradiction
+      else if gt_v1: target > v1 then
+        have: v2 < target := Trans.trans v2_v1 gt_v1
+        simp [not_lt_of_ge (le_of_lt this), ne_of_lt this, ne_of_lt gt_v1, not_lt_of_ge (le_of_lt gt_v1)] at *
+        assumption
+      else
+        have: target = v1 := eq_of_le_of_le (le_of_not_gt gt_v1) (le_of_not_gt lt_v1)
+        subst this; left; rfl
+  case mpr =>
+    simp [BSTree.rotateLeft]
+    split <;> simp [*] at *
+    case _ v2 A v1 B E => -- Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E
+      obtain ⟨A_wf, B_wf, E_wf, B_inv, E_inv, A_inv, inner_inv⟩ := tree_wf
+      have v2_v1 := inner_inv v1 (by simp)
+      if lt_v1: target < v1 then
+        if lt_v2: target < v2 then
+          simp [*, ne_of_lt lt_v1, ne_of_lt lt_v2]
+        else if gt_v2: target > v2 then
+          simp [*, ne_of_lt lt_v1, ne_of_lt gt_v2];
+        else
+          have: target = v2 := eq_of_le_of_le (le_of_not_gt gt_v2) (le_of_not_gt lt_v2)
+          subst this; simp
+      else if gt_v1: target > v1 then
+        have: v2 < target := Trans.trans v2_v1 gt_v1
+        simp [not_lt_of_ge (le_of_lt this), ne_of_lt this, ne_of_lt gt_v1, not_lt_of_ge (le_of_lt gt_v1)] at *
+      else
+        have: target = v1 := eq_of_le_of_le (le_of_not_gt gt_v1) (le_of_not_gt lt_v1)
+        subst this
+        simp [ne_of_lt v2_v1, not_lt_of_ge (le_of_lt v2_v1)]
 
 /- theorem height_node(tree: BSTree α) -/
 /- : tree.height > 0 ↔ tree ≠ .Nil -/
