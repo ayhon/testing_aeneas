@@ -501,13 +501,180 @@ theorem rebalance_spec(tree: AVLTree Isize)
       simp at *; simp [BSTree.rebalance, *]
 
 
-theorem rebalance_correct[PartialOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
+theorem rebalance_correct_left[LinearOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
 : left.is_avl
 -> right.is_avl
--> (BSTree.Node v left right).well_formed
--> (left.height - right.height: Int).natAbs = 2
--> (BSTree.Node v left right).rebalance.is_avl
-:= sorry
+-> (BSTree.Node value left right).well_formed
+-> (left.height - right.height: Int) = 2
+-> left.balancingFactor ≠ 0 -- Look at the note with (`EXTRA_HYPOT`)
+/- -> right.balancingFactor ≠ 0 -- TODO: You can't do both at once! Choose between left or right -/
+-> (BSTree.Node value left right).rebalance.is_avl
+:= by
+  intro left_avl right_avl tree_wf bf1_is_2 bf1_left_ne_0
+  simp
+  apply And.intro <;> simp [BSTree.rebalance, bf1_is_2,]
+  case left => -- Rebalance balances the tree
+    clear tree_wf -- We won't need this, remove to manage number of hypothesis
+    simp [BSTree.is_avl] at left_avl right_avl
+    obtain ⟨left_bal, -⟩ := left_avl
+    obtain ⟨right_bal, -⟩ := right_avl
+    split_ifs
+    case pos bf2_n1 => -- LEFT-RIGHT: bf1 = 2, bf2 = -1
+      /-
+            X           ⟨X⟩            
+         ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+         ᵃ  Y        Z  ᶜ          Z   X
+           ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+      -/
+      generalize H_def: right.height = H at *
+      have left_H: left.height = H + 2 := by scalar_tac
+      cases left_def:left <;> simp [*] at *
+      case Node v1 left1 right1 =>
+        have: right1.height = left1.height + 1 := by scalar_tac
+        have left1_H: left1.height = H := by 
+          simp [this] at left_H
+          scalar_tac
+        simp [*] at *
+        cases h:right1 <;> try simp [BSTree.rotateLeft, BSTree.rotateRight, *] at *
+        case Node v2 left2 right2 =>
+          unfold Nat.max at *
+          scalar_tac
+
+    case pos bf2_ne_1 bf2_1 =>
+      /-
+             ⟨X⟩
+            Y  ᵈ  >>     Y
+          Z  ᶜ         Z   X
+         ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+      -/
+      generalize H_def: right.height = H at *
+      have left_H: left.height = H + 2 := by scalar_tac
+      -- TODO: This part above can probably be abstracted away if we don't use the split_ifs tactic
+      cases left <;> simp [*] at *
+      case Node v1 left1 right1 =>
+        have: left1.height = right1.height + 1 := by scalar_tac
+        simp [this] at left_H
+        have right1_H: right1.height = H := by scalar_tac
+        simp [*] at *; clear left_H
+        simp [BSTree.rotateRight, BSTree.rotateLeft, *]
+        scalar_tac
+    case neg bf2_ne_1 bf2_ne_n1 =>
+      have bf2_0: left.balancingFactor = 0 := by
+        cases left <;> simp at *
+        case Node v1 left1 right1 => scalar_tac
+      -- TODO: This is a contradiction because of `insert_height`.
+      --  If we rebalance after an insertion, we should have that the modified tree
+      --  doesn't differ by more than 1 in the heights of its nodes. This, combined
+      --  with the hypothesis that the original tree was a proper AVL ensures that
+      --  left.balancingFactor ≠ 0
+      -- NOTE: Added hypothesis bf1_left_ne_0 and bf1_right_ne_0 (`EXTRA_HYPOT`)
+      contradiction
+  case right => -- Rebalance keeps well_formedness
+    obtain ⟨left_wf, right_wf, left_bs_inv, right_bs_inv⟩ := tree_wf
+    split_ifs
+    case pos bf2_n1 =>
+      cases left <;> simp [*] <;> try assumption
+      case Node v1 left1 right1 =>
+        simp at bf2_n1
+        /- obtain ⟨left1_wf, right1_wf, left1_inv, right1_inv⟩ := left_wf -/
+        apply rotateRight_preserves_wf.mp
+        unfold BSTree.well_formed; split_conjs <;> try assumption
+        apply rotateLeft_preserves_wf.mp; assumption
+        intro x hyp
+        -- NOTE: This was a lot of moving theorems around. 
+        -- TODO: Look into how I could streamline the process
+        have := SetRefinement.contains_spec x (rotateLeft_preserves_wf.mp left_wf) |>.mpr hyp
+        have := rotateLeft_preserves_contains left_wf |>.mpr this
+        apply left_bs_inv
+        exact SetRefinement.contains_spec x left_wf |>.mp this
+    case pos bf2_ne_1 bf2_n1 =>
+      clear bf2_ne_1
+      -- NOTE: Adapted copy-paste from previous case
+      cases left <;> simp [*] <;> try assumption
+      case Node v1 left1 right1 =>
+        simp at bf2_n1
+        apply rotateRight_preserves_wf.mp
+        unfold BSTree.well_formed; split_conjs <;> try assumption
+    case neg bf2_ne_1 bf2_ne_n1 =>
+      split <;> simp at bf2_ne_1 bf2_ne_n1
+      · unfold BSTree.well_formed; split_conjs <;> try assumption
+      · unfold BSTree.well_formed; split_conjs <;> try assumption
+        -- TODO: Could this be simplified if I don't split the `tree_wf` hypothesis at the beginning?
+
+theorem rebalance_correct_right[LinearOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
+: left.is_avl
+-> right.is_avl
+-> (BSTree.Node value left right).well_formed
+-> (left.height - right.height: Int) = -2
+-> right.balancingFactor ≠ 0
+-> (BSTree.Node value left right).rebalance.is_avl
+:= by -- NOTE: Adapted copy-paste from rebalance_correct_left
+  intro left_avl right_avl tree_wf bf1_is_2 bf1_left_ne_0
+  simp
+  apply And.intro <;> simp [BSTree.rebalance, bf1_is_2,]
+  case left => -- Rebalance balances the tree
+    clear tree_wf -- We won't need this, remove to manage number of hypothesis
+    simp [BSTree.is_avl] at left_avl right_avl
+    obtain ⟨left_bal, -⟩ := left_avl
+    obtain ⟨right_bal, -⟩ := right_avl
+    split_ifs
+    case pos bf2_n1 =>
+      generalize H_def: left.height = H at *
+      have left_H: right.height = H + 2 := by scalar_tac
+      cases left_def:right <;> simp [*] at *
+      case Node v1 left1 right1 =>
+        have: left1.height = right1.height + 1 := by scalar_tac
+        have left1_H: right1.height = H := by 
+          simp [this] at left_H
+          scalar_tac
+        simp [*] at *
+        cases h:left1 <;> try simp [BSTree.rotateLeft, BSTree.rotateRight, *] at *
+        case Node v2 left2 right2 =>
+          unfold Nat.max at *
+          scalar_tac
+    case pos bf2_ne_1 bf2_1 =>
+      generalize H_def: left.height = H at *
+      have right_H: right.height = H + 2 := by scalar_tac
+      cases right <;> simp [*] at *
+      case Node v1 left1 right1 =>
+        have: right1.height = left1.height + 1 := by scalar_tac
+        simp [this] at right_H
+        have left1_H: left1.height = H := by scalar_tac
+        simp [*] at *; clear right_H
+        simp [BSTree.rotateLeft, BSTree.rotateRight,  *]
+        scalar_tac
+    case neg bf2_ne_1 bf2_ne_n1 =>
+      have bf2_0: right.balancingFactor = 0 := by
+        cases right <;> simp at *
+        case Node v1 right1 left1 => scalar_tac
+      contradiction
+  case right => -- Rebalance keeps well_formedness
+    obtain ⟨left_wf, right_wf, left_bs_inv, right_bs_inv⟩ := tree_wf
+    split_ifs
+    case pos bf2_n1 =>
+      cases right <;> simp [*] <;> try assumption
+      case Node v1 left1 right1 =>
+        simp at bf2_n1
+        apply rotateLeft_preserves_wf.mp
+        unfold BSTree.well_formed; split_conjs <;> try assumption
+        apply rotateRight_preserves_wf.mp; assumption
+        intro x hyp
+        have := SetRefinement.contains_spec x (rotateRight_preserves_wf.mp right_wf) |>.mpr hyp
+        have := rotateRight_preserves_contains right_wf |>.mpr this
+        apply right_bs_inv
+        exact SetRefinement.contains_spec x right_wf |>.mp this
+    case pos bf2_ne_1 bf2_n1 =>
+      clear bf2_ne_1
+      -- NOTE: Adapted copy-paste from previous case
+      cases right <;> simp [*] <;> try assumption
+      case Node v1 left1 right1 =>
+        simp at bf2_n1
+        apply rotateLeft_preserves_wf.mp
+        unfold BSTree.well_formed; split_conjs <;> try assumption
+    case neg bf2_ne_1 bf2_ne_n1 =>
+      split <;> simp at bf2_ne_1 bf2_ne_n1
+      · unfold BSTree.well_formed; split_conjs <;> try assumption
+      · unfold BSTree.well_formed; split_conjs <;> try assumption
 
 @[pspec]
 theorem insert_spec(tree: AVLTree Isize)(value: Isize)
