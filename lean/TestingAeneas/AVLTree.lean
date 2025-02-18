@@ -46,54 +46,59 @@ def BSTree.rotateLeft: BSTree α -> BSTree α
 @[simp] abbrev BSTree.is_avl[PartialOrder α][IsTotal α (·≤·)](tree: BSTree α): Prop :=
   tree.balanced ∧ tree.well_formed
 
+-- NOTE: I don't make this definition [simp] because it's a bit finicky and not really
+-- equational. I'd rather handle the unfoldings manually.
 def BSTree.rebalance(tree: BSTree α): BSTree α :=
-  let bf1 := tree.balancingFactor
-  if h: bf1 = 2 then
-    match h2: tree with
-    | Nil => by simp [h2,bf1] at h -- Unreachable
-    | Node value left right =>
-      let bf2 := left.balancingFactor
-      if bf2 = -1 then
-        /-
-              X           ⟨X⟩            
-           ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
-           ᵃ  Y        Z  ᶜ          Z   X
-             ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-        -/
-        
-        Node value left.rotateLeft right |>.rotateRight
-      else if bf2 = 1 then
-        /-
-               ⟨X⟩
-              Y  ᵈ  >>     Y
-            Z  ᶜ         Z   X
-           ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-        -/
-        tree.rotateRight
+  match tree with
+  | Nil => tree
+  | Node value left right =>
+      let bf1 := tree.balancingFactor
+      if bf1 = 2 then
+        match left with
+        | Nil => tree 
+        | Node .. =>
+          let bf2 := left.balancingFactor
+          if bf2 = -1 then
+            /-
+                  X           ⟨X⟩            
+               ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+               ᵃ  Y        Z  ᶜ          Z   X
+                 ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+            -/
+            
+            Node value left.rotateLeft right |>.rotateRight
+          else if bf2 = 1 then
+            /-
+                   ⟨X⟩
+                  Y  ᵈ  >>     Y
+                Z  ᶜ         Z   X
+               ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+            -/
+            tree.rotateRight
+          else tree
+      else if bf1 = -2 then
+        match right with
+        | Nil => tree
+        | Node .. =>
+          let bf2 := right.balancingFactor
+          if bf2 = 1 then
+            /-
+                 X         ⟨X⟩           
+               ᵃ  ⟨Z⟩  >>  ᵃ  Y    >>     Y
+                 Y  ᵈ       ᵇ  Z        Z   X
+                ᵇ ᶜ           ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
+            -/
+            Node value left right.rotateRight |>.rotateLeft
+          else if bf2 = -1 then
+            /-
+               ⟨X⟩           
+               ᵃ  Y    >>     Y
+                ᵇ  Z        Z   X
+                  ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
+            -/
+            tree.rotateLeft
+          else tree
       else tree
-  else if h: bf1 = -2 then
-    match h2: tree with
-    | Nil => by simp [h2,bf1] at h -- Unreachable
-    | Node value left right =>
-      let bf2 := right.balancingFactor
-      if bf2 = 1 then
-        /-
-             X         ⟨X⟩           
-           ᵃ  ⟨Z⟩  >>  ᵃ  Y    >>     Y
-             Y  ᵈ       ᵇ  Z        Z   X
-            ᵇ ᶜ           ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
-        -/
-        Node value left right.rotateRight |>.rotateLeft
-      else if bf2 = -1 then
-        /-
-           ⟨X⟩           
-           ᵃ  Y    >>     Y
-            ᵇ  Z        Z   X
-              ᶜ ᵈ      ᵃ ᵇ ᶜ ᵈ
-        -/
-        tree.rotateLeft
-      else tree
-  else tree
 
 end Spec/- }}} -/
 
