@@ -4,14 +4,19 @@ import TestingAeneas.BSTree
 open Aeneas.Std
 
 namespace Spec/- {{{ -/
+section Operations/- {{{ -/
 @[simp] def BSTree.height: BSTree α -> Nat
 | Node _ left right => 1 + left.height.max right.height
 | Nil => 0
 
-
-@[simp] abbrev BSTree.balancingFactor: BSTree α -> Int
+def BSTree.balancingFactor: BSTree α -> Int
 | Node _ left right => (left.height: Int) - right.height
 | Nil => 0
+
+@[simp] theorem balancingFactor_Nil{α : Type}: (@BSTree.Nil α).balancingFactor = 0 := by rfl
+@[simp] theorem balancingFactor_Node{value: α}{left right: BSTree α}: 
+    (BSTree.Node value left right).balancingFactor = left.height - right.height := by rfl
+
 
 /-
           Rotate right
@@ -36,15 +41,6 @@ def BSTree.rotateRight: BSTree α -> BSTree α
 def BSTree.rotateLeft: BSTree α -> BSTree α
 | Node v₁ A (Node v₂ B C) => Node v₂ (Node v₁ A B) C
 | otherwise => otherwise
-
-@[simp] def BSTree.balanced: BSTree α -> Prop
-| Nil => true
-| Node _ left right =>
-    (left.height - right.height: Int).natAbs ≤ 1 ∧
-    left.balanced ∧ right.balanced
-
-@[simp] abbrev BSTree.is_avl[PartialOrder α][IsTotal α (·≤·)](tree: BSTree α): Prop :=
-  tree.balanced ∧ tree.well_formed
 
 -- NOTE: I don't make this definition [simp] because it's a bit finicky and not really
 -- equational. I'd rather handle the unfoldings manually.
@@ -100,6 +96,39 @@ def BSTree.rebalance(tree: BSTree α): BSTree α :=
           else tree
       else tree
 
+def BSTree.insert_rebalance[LT α][DecidableLT α](value: α): BSTree α -> BSTree α
+| Nil => Node value Nil Nil
+| Node curr left right =>
+  let res := 
+    if value < curr then
+      Node curr (left.insert_rebalance value) right
+    else if value < curr then
+      Node curr left (right.insert_rebalance value)
+    else
+      Node value left right
+  if res.balancingFactor.natAbs = 2 then
+    res.rebalance
+  else
+    res
+end Operations/- }}} -/
+
+section Propositions/- {{{ -/
+def BSTree.all_subtrees(cond: BSTree α -> Prop): BSTree α -> Prop
+| Nil => true
+| tree@(Node _ left right) => cond tree ∧ left.all_subtrees cond ∧ right.all_subtrees cond
+
+@[simp] abbrev BSTree.is_avl[PartialOrder α][IsTotal α (·≤·)](tree: BSTree α): Prop :=
+  tree.all_subtrees (·.balancingFactor.natAbs ≤ 1) ∧ tree.well_formed
+
+/- @[simp] def BSTree.isRebalancedOf: BSTree α -> BSTree α -> Prop -/
+/- | Nil, Nil => True -/
+/- | Node .., Nil -/
+/- | Nil, Node .. => False -/
+/- | tree@(Node v left right), tree'@(Node v' left' right') => -/
+/-   tree = tree'.rebalance ∨ -/ 
+/-   v = v' ∧ left.isRebalancedOf left' ∧ right = right' ∨ -/
+/-   v = v' ∧ left = left' ∧ right.isRebalancedOf right' -/
+end Propositions/- }}} -/
 end Spec/- }}} -/
 
 section Translation/- {{{ -/
@@ -122,29 +151,59 @@ namespace AVLRefinement
 open testing_aeneas hiding max min BSTree
 open Spec
 attribute [local simp] AVLTree.toBS
+attribute [-simp] Bool.exists_bool
+/- attribute [-simp] exists_eq_left -/
 
-/- theorem valid_right_left_eq(curr: α)(left right: BSTree α) -/
-/- : let tree := BSTree.Node curr left right -/
-/-   left ≠ .Nil -> -/
-/-   tree.rotateRight.rotateLeft = tree := by -/
-/-   intro tree left_not_nil -/
-/-   simp [BSTree.rotateLeft, tree] -/
-/-   cases left <;> try contradiction -/
-/-   simp [BSTree.rotateRight] -/
+section AuxiliarySpecs/- {{{ -/
+@[pspec]
+theorem max_spec(a b: I8)
+: ∃ c,
+  testing_aeneas.max a b = Result.ok c ∧
+  c.val = max a.val b.val
+:= by/- {{{ -/
+  simp [testing_aeneas.max]
+  if a > b then
+    exists a; simp; scalar_tac
+  else
+    exists b; simp; scalar_tac/- }}} -/
 
-/- theorem valid_left_right_eq(curr: α)(left right: BSTree α) -/
-/- : let tree := BSTree.Node curr left right -/
-/-   right ≠ .Nil -> -/
-/-   tree.rotateLeft.rotateRight = tree -/
-/- := by -/
-/-   intro tree right_not_nil -/
-/-   simp [BSTree.rotateRight, tree] -/
-/-   cases right <;> try contradiction -/
-/-   simp [BSTree.rotateLeft] -/
+@[pspec]
+theorem min_spec(a b: I8)
+: ∃ c,
+  testing_aeneas.min a b = Result.ok c ∧
+  c.val = min a.val b.val
+:= by -- NOTE: symmetrical to max_spec{{{
+  simp [testing_aeneas.min]
+  if a < b then
+    exists a; simp; scalar_tac
+  else
+    exists b; simp; scalar_tac/- }}} -/
 
+@[pspec]
+theorem negate_spec(a: I8)
+: a > I8.min + 1
+-> ∃ v,
+    -.a = .ok v ∧ v = -a.val
+:= by/- {{{ -/
+  intro bnd
+  have hMin: I8.min = -I8.max -1 := by simp [I8.min, I8.max]
+  have hMax: I8.max  = -I8.min -1 := by simp [I8.min, I8.max]
+  simp [HNeg.hNeg, Scalar.neg, -Scalar.check_bounds, Scalar.tryMk, Scalar.tryMkOpt, Scalar.cMin, Scalar.min, Scalar.cMax, Scalar.max]
+  split <;> simp [*]
+  case _ v heq =>
+    simp at *
+    obtain ⟨h, pp⟩ := heq
+    simp [Scalar.ofIntCore] at pp
+    rw [<-pp]
+  case _ v heq =>
+    simp at heq
+    scalar_tac/- }}} -/
+end AuxiliarySpecs/- }}} -/
+
+section Rotate/- {{{ -/
 theorem rotateLeft_preserves_wf[PartialOrder α][IsTotal α (·<=·)]{tree: BSTree α}
 : tree.well_formed <-> tree.rotateLeft.well_formed
-:= by
+:= by/- {{{ -/
   simp [BSTree.rotateLeft]
   split <;> simp
   case _ v₂ A v₁ B E => -- Node v₂ A (Node v₁ B E) => Node v₁ (Node v₂ A B) E
@@ -165,11 +224,11 @@ theorem rotateLeft_preserves_wf[PartialOrder α][IsTotal α (·<=·)]{tree: BSTr
       · intros; simp [*]
       · intros x pred
         obtain (h | h) | h := pred <;> try simp [*]
-        exact Trans.trans v_rel (E_inv _ h)
+        exact Trans.trans v_rel (E_inv _ h)/- }}} -/
 
 theorem rotateRight_preserves_wf[PartialOrder α][IsTotal α (·<=·)]{tree: BSTree α}
 : tree.well_formed <-> tree.rotateRight.well_formed
-:= by -- NOTE: symmetrical to rotateLeft_preserves_wf
+:= by -- NOTE: symmetrical to rotateLeft_preserves_wf{{{
       -- NOTE: FLIP  doesn't help here, because we also need to flip on the order. It'd be 
   simp [BSTree.rotateRight]
   split <;> simp
@@ -191,12 +250,12 @@ theorem rotateRight_preserves_wf[PartialOrder α][IsTotal α (·<=·)]{tree: BST
       · intros; simp [*]
       · intros x pred
         obtain (h | h) | h := pred <;> try simp [*]
-        exact Trans.trans (A_inv _ h) v_rel
+        exact Trans.trans (A_inv _ h) v_rel/- }}} -/
 
 theorem rotateLeft_preserves_contains[LinearOrder α]{tree: BSTree α}{target: α}
 : tree.well_formed -> -- Since rotate preserves well-formedness, contains is also preserved
-(tree.contains target <-> tree.rotateLeft.contains target)
-:= by
+(tree.contains target <-> tree.rotateLeft.contains target) -- TODO: Replace by = ?
+:= by/- {{{ -/
   intro tree_wf 
   apply Iff.intro
   case mp =>
@@ -243,12 +302,12 @@ theorem rotateLeft_preserves_contains[LinearOrder α]{tree: BSTree α}{target: �
       else
         have: target = v1 := eq_of_le_of_le (le_of_not_gt gt_v1) (le_of_not_gt lt_v1)
         subst this
-        simp [ne_of_lt v2_v1, not_lt_of_ge (le_of_lt v2_v1)]
+        simp [ne_of_lt v2_v1, not_lt_of_ge (le_of_lt v2_v1)]/- }}} -/
 
 theorem rotateRight_preserves_contains[LinearOrder α]{tree: BSTree α}{target: α}
 : tree.well_formed -> -- Since rotate preserves well-formedness, contains is also preserved
 (tree.contains target <-> tree.rotateRight.contains target)
-:= by -- NOTE: Adapted copy-paste from rotateLeft_preserves_contains
+:= by -- NOTE: Adapted copy-paste from rotateLeft_preserves_contains{{{
   intro tree_wf 
   apply Iff.intro
   case mp => 
@@ -294,55 +353,7 @@ theorem rotateRight_preserves_contains[LinearOrder α]{tree: BSTree α}{target: 
           subst this; simp
       else
         have: v1 = target := eq_of_le_of_le (le_of_not_gt lt_v1) (le_of_not_gt gt_v1) 
-        subst this; simp [v1_v2]
-
-/- theorem height_node(tree: BSTree α) -/
-/- : tree.height > 0 ↔ tree ≠ .Nil -/
-/- := by cases tree <;> simp -/
-
-@[pspec]
-theorem max_spec(a b: I8)
-: ∃ c,
-  testing_aeneas.max a b = Result.ok c ∧
-  c.val = max a.val b.val
-:= by
-  simp [testing_aeneas.max]
-  if a > b then
-    exists a; simp; scalar_tac
-  else
-    exists b; simp; scalar_tac
-
-@[pspec]
-theorem min_spec(a b: I8)
-: ∃ c,
-  testing_aeneas.min a b = Result.ok c ∧
-  c.val = min a.val b.val
-:= by -- NOTE: symmetrical to max_spec
-  simp [testing_aeneas.min]
-  if a < b then
-    exists a; simp; scalar_tac
-  else
-    exists b; simp; scalar_tac
-
-@[pspec]
-theorem negate_spec(a: I8)
-: a > I8.min + 1
--> ∃ v,
-    -.a = .ok v ∧ v = -a.val
-:= by
-  intro bnd
-  have hMin: I8.min = -I8.max -1 := by simp [I8.min, I8.max]
-  have hMax: I8.max  = -I8.min -1 := by simp [I8.min, I8.max]
-  simp [HNeg.hNeg, Scalar.neg, -Scalar.check_bounds, Scalar.tryMk, Scalar.tryMkOpt, Scalar.cMin, Scalar.min, Scalar.cMax, Scalar.max]
-  split <;> simp [*]
-  case _ v heq =>
-    simp at *
-    obtain ⟨h, pp⟩ := heq
-    simp [Scalar.ofIntCore] at pp
-    rw [<-pp]
-  case _ v heq =>
-    simp at heq
-    scalar_tac
+        subst this; simp [v1_v2]/- }}} -/
 
 theorem balancing_factor_update_rotateLeft(l m r: Int)
 : let bf_out := l - max m r - 1
@@ -365,18 +376,17 @@ theorem balancing_factor_update_rotateRight(l m r: Int)
 @[pspec]
 theorem rotateLeft_spec(tree: AVLTree Isize)
 : tree.invariant
--> (tree: BSTree Isize).balanced
+-> tree.toBS.all_subtrees (·.balancingFactor ≤ 2)
 -> ∃ tree',
     AVLTreeIsize.rotateLeft tree = .ok tree' ∧
     tree' = (tree: BSTree Isize).rotateLeft ∧
     tree'.invariant
-:= by
+:= by/- {{{ -/
   rw [AVLTreeIsize.rotateLeft.eq_def]
-  intro tree_inv balanced
+  intro tree_inv noOverflow
   split <;> simp [BSTree.rotateLeft]; split <;> simp [AVLTree.invariant] at *; try assumption
   case _ self v₁ A bf₁ inner v₂ B C bf₂ =>
     obtain ⟨bf₁_spec, A_inv, bf₂_spec, B_inv, C_inv⟩ := tree_inv
-    obtain ⟨bf₁_inv, -, bf₂_inv, -⟩ := balanced
 
     progress as ⟨aux, aux_spec⟩
     progress as ⟨aux2, aux2_spec⟩
@@ -388,22 +398,21 @@ theorem rotateLeft_spec(tree: AVLTree Isize)
     progress as ⟨bf₃, bf₃_spec⟩
     simp only [aux_spec, aux2_spec] at bf₃_spec; clear aux aux_spec aux2 aux2_spec
 
-    simp [*]; split_conjs <;> scalar_tac
+    simp [*]; split_conjs <;> scalar_tac/- }}} -/
 
 @[pspec]
 theorem rotateRight_spec(tree: AVLTree Isize)
 : tree.invariant
--> (tree: BSTree Isize).balanced
+-> tree.toBS.all_subtrees (·.balancingFactor ≤ 2)
 -> ∃ tree',
     AVLTreeIsize.rotateRight tree = .ok tree' ∧
     tree' = (tree: BSTree Isize).rotateRight ∧
     tree'.invariant
-:= by -- NOTE: Symmetrical to rotateLeft_spec
+:= by -- NOTE: Symmetrical to rotateLeft_spec{{{
   rw [AVLTreeIsize.rotateRight.eq_def]
-  intro tree_inv balanced
+  intro tree_inv noOverflow
   split <;> simp [BSTree.rotateRight]; split <;> simp [AVLTree.invariant] at *; try assumption
   case _ self v₁ A bf₁ inner v₂ B C bf₂ =>
-    obtain ⟨bf₁_inv, bf₂_inv, -⟩ := balanced
     obtain ⟨bf₁_spec, bf₂_spec, B_inv, C_inv, A_inv⟩ := tree_inv
 
     progress as ⟨aux, aux_spec⟩
@@ -416,32 +425,57 @@ theorem rotateRight_spec(tree: AVLTree Isize)
     progress as ⟨bf₃, bf₃_spec⟩
     simp only [aux_spec, aux2_spec] at bf₃_spec; clear aux aux_spec aux2 aux2_spec
 
-    simp [*]; split_conjs <;> scalar_tac
+    simp [*]; split_conjs <;> scalar_tac/- }}} -/
+end Rotate/- }}} -/
 
+section Rebalance/- {{{ -/
+theorem unnecessary_rebalance_is_id{tree: BSTree α}
+: tree.balancingFactor.natAbs ≠ 2
+-> tree.rebalance = tree
+:= by/- {{{ -/
+  cases tree
+  case Nil => simp [BSTree.rebalance]
+  case Node v left right =>
+    simp; intro abs_bf_ne_2
+    have bf_ne_2: (left.height - right.height: Int) ≠ 2 := by scalar_tac
+    have bf_ne_n2: (left.height - right.height: Int) ≠ -2 := by scalar_tac
+    simp [BSTree.rebalance, bf_ne_2, bf_ne_n2]/- }}} -/
+
+theorem rebalance_preserves_inv(tree: AVLTree Isize)
+: tree.invariant
+-> tree.toBS.all_subtrees (·.balancingFactor ≤ 1)
+-> ∃ tree',
+    AVLTreeIsize.rebalance tree = .ok tree' ∧
+    tree'.invariant ∧
+    tree.toBS.all_subtrees (·.balancingFactor ≤ 1)
+:= by sorry
 
 @[pspec]
 theorem rebalance_spec(tree: AVLTree Isize)
 : tree.invariant
--> (tree : BSTree Isize).balanced
+-> tree.toBS.all_subtrees (·.balancingFactor ≤ 1)
 -> ∃ tree',
     AVLTreeIsize.rebalance tree = .ok tree' ∧
-    tree'.toBS = tree.toBS.rebalance
-:= by
-  intro avl_inv balanced
+    tree'.toBS = tree.toBS.rebalance /- ∧
+    tree'.invariant ∧ 
+    tree.toBS.all_subtrees (·.balancingFactor ≤ 1) -/
+:= by/- {{{ -/
+  intro avl_inv noOverflow
   rw [AVLTreeIsize.rebalance.eq_def]
   split
-  case _ =>
-    simp [BSTree.rebalance]
+  case _ => simp [BSTree.rebalance]
   case _ X vX Z D bfX =>
-    obtain ⟨bfX_spec, Z_avl, D_avl⟩ := avl_inv
+    simp at noOverflow
+    obtain ⟨bfX_bnd, Z_bnd, D_bnd⟩ := noOverflow
+    have ⟨bfX_spec, Z_avl, D_avl⟩ := avl_inv
     split_ifs 
     case pos bfX_is_2 =>
       subst bfX_is_2
       simp [AVLTreeIsize.balance_factor]
-      cases Z <;> simp at *
-      case Nil =>
-        simp [BSTree.rebalance, *]
+      cases Z
+      case Nil => simp at *; simp [BSTree.rebalance, *]
       case Node vZ A Y bfZ =>
+        simp at *
         obtain ⟨bfZ_spec, A_inv, Y_inv⟩ := Z_avl
         split_ifs
         case pos bfZ_is_1 =>
@@ -451,9 +485,14 @@ theorem rebalance_spec(tree: AVLTree Isize)
               Z  ᶜ         Z   X
              ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
           -/
-          subst bfZ_is_1
-          unfold BSTree.rebalance
-          simp [*] at *
+          simp [BSTree.rebalance, avl_inv, bfZ_is_1]
+          progress
+
+          simp [*,BSTree.rebalance]
+          simp [*, BSTree.rotateRight]
+          progress
+          · simp; assumption
+          · simp [AVLTree.bf_bounded]; scalar_tac
         case pos _ bfZ_is_n1 =>
           /-
                 X           ⟨X⟩            
@@ -462,6 +501,15 @@ theorem rebalance_spec(tree: AVLTree Isize)
                ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
           -/
           subst bfZ_is_n1
+          simp [AVLTreeIsize.rotateRight]
+          cases A <;> simp
+          · simp at *
+          · progress
+            progress
+            progress
+            progress
+            simp
+            sorry
           unfold BSTree.rebalance
           simp [*] at *
         case neg _ _ =>
@@ -498,22 +546,20 @@ theorem rebalance_spec(tree: AVLTree Isize)
           simp at *; simp [BSTree.rebalance, *] -- NOTE: Same as bellow `neg` branch
     case neg bf1_ne_2 bf1_ne_n2 =>
       -- Here I simply have to show that BSTree does nothing as well.
-      simp at *; simp [BSTree.rebalance, *]
-
+      simp at *; simp [BSTree.rebalance, *]/- }}} -/
 
 theorem rebalance_correct_left[LinearOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
 : left.is_avl
 -> right.is_avl
 -> (BSTree.Node value left right).well_formed
 -> (left.height - right.height: Int) = 2
--> left.balancingFactor ≠ 0 -- Look at the note with (`EXTRA_HYPOT`)
-/- -> right.balancingFactor ≠ 0 -- TODO: You can't do both at once! Choose between left or right -/
+-> left.balancingFactor ≠ 0
 -> (BSTree.Node value left right).rebalance.is_avl
-:= by
+:= by/- {{{ -/
   intro left_avl right_avl tree_wf bf1_is_2 bf1_left_ne_0
   simp
-  apply And.intro <;> simp [BSTree.rebalance, bf1_is_2,]
-  case left => -- Rebalance balances the tree
+  split_conjs <;> simp [BSTree.rebalance, bf1_is_2,]
+  case _ => -- Rebalance balances the tree
     clear tree_wf -- We won't need this, remove to manage number of hypothesis
     simp [BSTree.is_avl] at left_avl right_avl
     obtain ⟨left_bal, -⟩ := left_avl
@@ -569,7 +615,8 @@ theorem rebalance_correct_left[LinearOrder α][IsTotal α (·≤·)](value: α)(
       --  left.balancingFactor ≠ 0
       -- NOTE: Added hypothesis bf1_left_ne_0 and bf1_right_ne_0 (`EXTRA_HYPOT`)
       contradiction
-  case right => -- Rebalance keeps well_formedness
+
+  case _ => -- Rebalance keeps well_formedness
     obtain ⟨left_wf, right_wf, left_bs_inv, right_bs_inv⟩ := tree_wf
     split_ifs
     case pos bf2_n1 =>
@@ -600,6 +647,7 @@ theorem rebalance_correct_left[LinearOrder α][IsTotal α (·≤·)](value: α)(
       · unfold BSTree.well_formed; split_conjs <;> try assumption
       · unfold BSTree.well_formed; split_conjs <;> try assumption
         -- TODO: Could this be simplified if I don't split the `tree_wf` hypothesis at the beginning?
+        -- }}}
 
 theorem rebalance_correct_right[LinearOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
 : left.is_avl
@@ -608,7 +656,7 @@ theorem rebalance_correct_right[LinearOrder α][IsTotal α (·≤·)](value: α)
 -> (left.height - right.height: Int) = -2
 -> right.balancingFactor ≠ 0
 -> (BSTree.Node value left right).rebalance.is_avl
-:= by -- NOTE: Adapted copy-paste from rebalance_correct_left
+:= by -- NOTE: Adapted copy-paste from rebalance_correct_left{{{
   intro left_avl right_avl tree_wf bf1_is_2 bf1_left_ne_0
   simp
   apply And.intro <;> simp [BSTree.rebalance, bf1_is_2,]
@@ -674,87 +722,14 @@ theorem rebalance_correct_right[LinearOrder α][IsTotal α (·≤·)](value: α)
     case neg bf2_ne_1 bf2_ne_n1 =>
       split <;> simp at bf2_ne_1 bf2_ne_n1
       · unfold BSTree.well_formed; split_conjs <;> try assumption
-      · unfold BSTree.well_formed; split_conjs <;> try assumption
+      · unfold BSTree.well_formed; split_conjs <;> try assumption/- }}} -/
 
-theorem unnecessary_rebalance_is_id(tree: BSTree α)
-: tree.balancingFactor.natAbs ≠ 2
--> tree.rebalance = tree
-:= by
-  cases tree
-  case Nil => simp [BSTree.rebalance]
-  case Node v left right =>
-    simp; intro abs_bf_ne_2
-    have bf_ne_2: (left.height - right.height: Int) ≠ 2 := by scalar_tac
-    have bf_ne_n2: (left.height - right.height: Int) ≠ -2 := by scalar_tac
-    simp [BSTree.rebalance, bf_ne_2, bf_ne_n2]
+end Rebalance/- }}} -/
 
-@[pspec]
-theorem insert_and_warn_spec{tree: AVLTree Isize}(value: Isize)
-: tree.invariant
--> tree.toBS.is_avl
--> ∃ tree' b tree'',
-  AVLTreeIsize.insertAndWarn tree value = .ok (tree', b) ∧
-  tree.toBS.insert value = tree'' ∧
-  b = (tree''.balancingFactor.natAbs == 2) ∧
-  tree''.rebalance = tree'.toBS ∧
-  tree'.toBS.is_avl
-:= by
-  intro avl_inv tree_avl
-  rw [AVLTreeIsize.insertAndWarn]
-  split <;> simp [BSTree.rebalance]
-  case _ v1 left right bf =>
-    obtain ⟨⟨bf1_bal, left_bal, right_bal⟩, left_wf, right_wf, left_bst, right_bst⟩ := tree_avl
-    split
-    case isTrue v1_eq_value => -- No value needs to be inserted
-      have: (left.toBS.height - right.toBS.height: Int).natAbs ≠ 2 := by scalar_tac
-      have: (left.toBS.height - right.toBS.height: Int) ≠ 2 := by scalar_tac
-      have: (left.toBS.height - right.toBS.height: Int) ≠ -2 := by scalar_tac
-      simp [*] at *
-      split_conjs
-      · scalar_tac
-      · assumption
-    case isFalse v1_ne_value => -- We need to insert the value in either left or right
-      obtain ⟨bf_def, left_avl_inv, right_avl_inv⟩ := avl_inv
-      split
-      case isTrue value_v1=> -- value < v1
-        have ⟨tree', b, tree'', tree'_spec, tree''_spec, b_spec, tree'_tree'', tree'_avl⟩ := insert_and_warn_spec value left_avl_inv (by simp [left_bal, left_wf])
-        simp [tree'_spec, tree''_spec]
-        cases tree''
-        case Nil =>
-          simp at b_spec; simp [b_spec]
-
-          sorry
-        case Node =>
-          sorry
-      case isFalse v1_value => -- v1 < value
-        have v1_value: v1.val < value := by scalar_tac
-
-
-        sorry
-
-
-      any_goals sorry
-
-
-@[pspec]
-theorem insert_spec(tree: AVLTree Isize)(value: Isize)
-: tree.invariant
--> tree.toBS.is_avl
--> ∃ tree' tree'',
-    AVLTreeIsize.insert tree value = .ok tree' ∧
-    tree.toBS.insert value = tree'' ∧
-    tree'.toBS.is_avl ∧
-    tree'.toBS = tree''.rebalance -- The condition |tree.balancingFactor| <= 1 implies tree''.rebalance = tree''
-:= by
-  intro avl_inv tree_is_avl
-  unfold AVLTreeIsize.insert
-  progress as ⟨tree',      b,      tree'', 
-               tree'_spec, b_spec, tree''_spec, tree'_avl⟩
-  simp [*]
-
+section Insert/- {{{ -/
 theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BSTree α)
 : (tree.insert value |>.height) <= tree.height + 1
-:= by
+:= by/- {{{ -/
   cases tree
   case Nil => simp [BSTree.insert]
   case Node curr left right =>
@@ -763,17 +738,79 @@ theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BST
     · have := insert_height value left
       scalar_tac
     · have := insert_height value right
-      scalar_tac
+      scalar_tac/- }}} -/
 
+@[pspec]
+theorem insert_and_warn_spec{tree: AVLTree Isize}(value: Isize)
+: tree.invariant
+-> tree.toBS.is_avl -- TODO:  Look into deactivating the `exists` lemma.
+-> ∃ tree' b,
+  AVLTreeIsize.insertAndWarn tree value = .ok (tree', b) ∧
+  tree' = tree.toBS.insert_rebalance value ∧  -- This is also only true if we didn't have to rebalance all previous nodes.
+  (if b then (tree'.toBS.height = tree.toBS.height + 1) else (tree'.toBS.height = tree.toBS.height)) ∧
+  tree'.invariant ∧
+  tree'.toBS.is_avl
+:= by/- {{{ -/
+  intro tree_inv ⟨tree_bal, tree_wf⟩
+  rw [AVLTreeIsize.insertAndWarn]
+  cases tree
+  case Nil => simp [BSTree.insert_rebalance]
+  case Node curr left right bf =>
+    simp at *
+    obtain ⟨bf_inv, left_inv, right_inv⟩ := tree_inv
+    obtain ⟨bf_bal, left_bal, right_bal⟩ := tree_bal
+    obtain ⟨left_wf, right_wf, left_bs, right_bs⟩ := tree_wf
+    split -- If I do `split_ifs` here I get a `bf=2` hypothesis? Which makes no sense?
+    case isTrue value_lt_curr =>
+      have: left.toBS.is_avl := by constructor <;> assumption
+      progress as ⟨left', b, left'_spec, b_spec, left'_inv, left'_avl⟩
+      if b_val: b then
+        simp [b_val]
+        simp [b_val] at b_spec
+        progress as ⟨bf', bf'_spec⟩
+        have: (AVLTree.Node value left' right bf').invariant := by scalar_tac
+        split
+        case isTrue bf'_2 =>
+          progress --as ⟨_⟩
+          sorry
+        case isFalse bf'_ne_2 =>
+          sorry
+      else
+        sorry
+    case' isFalse _ => split
+    case isTrue curr_lt_value =>
+      have: right.toBS.is_avl := by constructor <;> assumption
+      sorry
+    case isFalse value_ge_curr curr_ge_value =>
+      have: value = curr := by scalar_tac
+      subst this; simp [BSTree.insert_rebalance]
+      simp [bf_inv] at *
+      have: bf.val.natAbs ≠ 2 := by scalar_tac
+      simp [*]; split_conjs <;> assumption/- }}} -/
+
+@[pspec]
+theorem insert_spec{tree: AVLTree Isize}(value: Isize)
+: tree.invariant
+-> tree.toBS.is_avl
+-> ∃ tree',
+  AVLTreeIsize.insert tree value = .ok tree' ∧
+  tree' = tree.toBS.insert_rebalance value ∧
+  tree'.invariant ∧
+  tree'.toBS.is_avl
+:= by sorry
+end Insert/- }}} -/
+
+section Contains/- {{{ -/
 @[pspec]
 theorem contains_spec(tree: AVLTree Isize)(target: Isize)
 : ∃ b,
     AVLTreeIsize.contains tree target = .ok b ∧
     b = tree.toBS.contains target
-:= by
+:= by/- {{{ -/
   cases tree <;> rw [AVLTreeIsize.contains] <;> simp
   case Node curr left right =>
-    split_ifs <;> (try progress with contains_spec) <;> simp [*]
+    split_ifs <;> (try progress with contains_spec) <;> simp [*]/- }}} -/
+end Contains/- }}} -/
 
 end AVLRefinement
 end Lemmas/- }}} -/
