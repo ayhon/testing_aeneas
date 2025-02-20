@@ -283,48 +283,64 @@ def AVLTreeIsize.rebalance (self : AVLTree Isize) : Result (AVLTree Isize) :=
       else Result.ok self
 
 /- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::insertAndWarn]:
-   Source: 'src/lib.rs', lines 349:4-383:5 -/
+   Source: 'src/lib.rs', lines 349:4-376:5 -/
 divergent def AVLTreeIsize.insertAndWarn
   (self : AVLTree Isize) (value : Isize) : Result ((AVLTree Isize) × Bool) :=
   match self with
   | AVLTree.Nil =>
-    Result.ok (AVLTree.Node value AVLTree.Nil AVLTree.Nil 0#i8, false)
+    Result.ok (AVLTree.Node value AVLTree.Nil AVLTree.Nil 0#i8, true)
   | AVLTree.Node curr left right bf =>
-    if value != curr
+    if value < curr
     then
-      if value < curr
+      do
+      let p ← AVLTreeIsize.insertAndWarn left value
+      let (left1, did_height_increase) := p
+      if did_height_increase
       then
         do
-        let p ← AVLTreeIsize.insertAndWarn left value
-        let (res, did_height_increase) := p
-        if did_height_increase
+        let bf1 ← bf + 1#i8
+        if bf1 = 2#i8
         then
           do
-          let bf1 ← bf + 1#i8
-          if bf1 = 2#i8
-          then do
-               let a ← AVLTreeIsize.rebalance res
-               Result.ok (a, false)
-          else Result.ok p
-        else Result.ok p
+          let a ← AVLTreeIsize.rebalance (AVLTree.Node value left1 right bf1)
+          Result.ok (a, false)
+        else Result.ok (AVLTree.Node value left1 right bf1, true)
       else
+        if bf = 2#i8
+        then
+          do
+          let a ← AVLTreeIsize.rebalance (AVLTree.Node value left1 right bf)
+          Result.ok (a, false)
+        else Result.ok (AVLTree.Node value left1 right bf, false)
+    else
+      if value > curr
+      then
         do
         let p ← AVLTreeIsize.insertAndWarn right value
-        let (res, did_height_increase) := p
+        let (right1, did_height_increase) := p
         if did_height_increase
         then
           do
           let bf1 ← bf - 1#i8
           if bf1 = (-2)#i8
-          then do
-               let a ← AVLTreeIsize.rebalance res
-               Result.ok (a, false)
-          else Result.ok p
-        else Result.ok p
-    else Result.ok (self, false)
+          then
+            do
+            let a ←
+              AVLTreeIsize.rebalance (AVLTree.Node value left right1 bf1)
+            Result.ok (a, false)
+          else Result.ok (AVLTree.Node value left right1 bf1, true)
+        else
+          if bf = (-2)#i8
+          then
+            do
+            let a ←
+              AVLTreeIsize.rebalance (AVLTree.Node value left right1 bf)
+            Result.ok (a, false)
+          else Result.ok (AVLTree.Node value left right1 bf, false)
+      else Result.ok (self, false)
 
 /- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::insert]:
-   Source: 'src/lib.rs', lines 385:4-387:5 -/
+   Source: 'src/lib.rs', lines 378:4-380:5 -/
 def AVLTreeIsize.insert
   (self : AVLTree Isize) (value : Isize) : Result (AVLTree Isize) :=
   do

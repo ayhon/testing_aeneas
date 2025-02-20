@@ -350,32 +350,25 @@ impl AVLTree<isize>{
         match self {
             Self::Nil => (Self::Node{
                 value, left: Box::new(Self::Nil), right: Box::new(Self::Nil), bf: 0
-            }, false),
-            Self::Node{value: curr, left, right, bf} if value != curr => {
-                if value < curr {
-                    let (res, did_height_increase) = left.insertAndWarn(value);
-                    if did_height_increase {
-                        let bf = bf + 1;
-                        if bf == 2 {
-                            (res.rebalance(), false)
-                        } else {
-                            (res, true)
-                        }
-                    } else {
-                        (res, false)
-                    }
+            }, true),
+            Self::Node{value: curr, left, right, bf} if value < curr => {
+                let (left, did_height_increase) = left.insertAndWarn(value);
+                let bf = if did_height_increase {bf + 1} else { bf };
+                let res = Self::Node{value, left: Box::new(left), right, bf};
+                if bf == 2 {
+                    (res.rebalance(), false)
                 } else {
-                    let (res, did_height_increase) = right.insertAndWarn(value);
-                    if did_height_increase {
-                        let bf = bf - 1;
-                        if bf == -2 {
-                            (res.rebalance(), false)
-                        } else {
-                            (res, true)
-                        }
-                    } else {
-                        (res, false)
-                    }
+                    (res, did_height_increase)
+                }
+            }
+            Self::Node{value: curr, left, right, bf} if value > curr => {
+                let (right, did_height_increase) = right.insertAndWarn(value);
+                let bf = if did_height_increase {bf - 1} else { bf };
+                let res = Self::Node{value, left, right: Box::new(right), bf};
+                if bf == -2 {
+                    (res.rebalance(), false)
+                } else {
+                    (res, did_height_increase)
                 }
             }
             _ => (self, false)
