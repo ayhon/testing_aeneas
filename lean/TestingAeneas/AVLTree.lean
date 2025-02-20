@@ -646,6 +646,154 @@ theorem rebalance_preserves_inv_left{value: Isize}{left right: AVLTree Isize}{bf
     case neg bf1_ne_1 bf1_ne_n1 => -- Impossible!
       scalar_tac/- }}} -/
 
+theorem rebalance_preserves_inv_right{value: Isize}{left right: AVLTree Isize}{bf: I8}
+: let tree := AVLTree.Node value left right bf
+  tree.invariant
+-> tree.toBS.balancingFactor = -2
+-> left.toBS.all_subtrees (·.balancingFactor.natAbs ≤ 1)
+-> right.toBS.all_subtrees (·.balancingFactor.natAbs ≤ 1)
+-> right.toBS.balancingFactor ≠ 0
+-> ∃ tree',
+    AVLTreeIsize.rebalance tree = .ok tree' ∧
+    tree'.invariant ∧
+    tree'.toBS.all_subtrees (·.balancingFactor.natAbs ≤ 1)
+:= by /- {{{ -/
+  intro tree tree_inv bf_2 left_bnd right_bnd left_heavy
+  have ⟨bf_def, left_inv, right_inv⟩ := tree_inv
+  unfold tree at *
+  simp [AVLTreeIsize.rebalance.eq_def]
+  generalize left_H: left.toBS.height = H at *
+  have right_H : right.toBS.height = H + (2: Int) := by 
+    simp [balancingFactor_Node] at *
+    omega -- scalar_tac doesn't seem to work
+
+  cases right
+  case Nil => simp [AVLTreeIsize.balance_factor, balancingFactor_Node] at bf_2
+  case Node v1 left1 right1 bf1 =>
+    simp at right_inv
+    have ⟨bf1_def, left1_inv, right1_inv⟩ := right_inv
+    simp [bf1_def] at left_bnd left_heavy
+    -- TODO: Change
+
+    simp [AVLTreeIsize.balance_factor]
+    have: bf = (-2)#i8 := by 
+      apply Scalar.eq_equiv bf (-2)#i8 |>.mpr
+      simp [<-bf_2, <-bf_def]
+    simp [this]
+    split_ifs
+    case pos bf1_is_1 =>
+      simp [bf1_is_1] at bf1_def
+      /-
+      TODO: Update drawings
+
+             ⟨X⟩
+            Y  ᵈ  >>     Y
+          Z  ᶜ         Z   X
+         ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+      -/
+      have left1_H: left1.toBS.height = H := by
+        simp [balancingFactor_Node] at *
+        omega
+      have right1_H: right1.toBS.height = H + 1:= by
+        simp [balancingFactor_Node] at *
+        omega
+
+      simp at *
+      progress as ⟨tree', tree'_spec,tree'_inv⟩
+      · simp [bf_2, bf1_is_1, bf1_def, tree_inv]
+      · obtain ⟨bf1_bnd, left1_bnd, right1_bnd⟩ := right_bnd
+        simp [bf_2, bf1_is_1, bf1_def, left_inv]; split_conjs
+        · apply implication_over_all left_bnd (by scalar_tac)
+        · apply implication_over_all left1_bnd (by scalar_tac)
+        · apply implication_over_all right1_bnd (by scalar_tac)
+      simp [*, BSTree.rotateLeft, balancingFactor_Node]
+      scalar_tac
+    case pos _ bf1_is_n1 => 
+      /-
+      TOOD: Update drawings
+
+            X           ⟨X⟩            
+         ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
+         ᵃ  Y        Z  ᶜ          Z   X
+           ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
+      -/
+      /-
+               ┌────tree────┐
+               │     H+3    │
+               ▼            ▼
+        ┌────left───┐     right
+        │     H+2   │       H
+        ▼           ▼
+      left1    ┌──right1──┐
+        H      │   H+1    │
+               ▼          ▼
+             left2      right2
+              ≤H          ≤H
+      -/
+      have right1_H: right1.toBS.height = H:= by
+        simp [balancingFactor_Node] at *
+        omega
+      have left1_H: left1.toBS.height = H + 1 := by
+        simp [balancingFactor_Node] at *
+        omega
+      obtain ⟨bf1_bnd, left1_bnd, right1_bnd⟩ := right_bnd
+      progress with rotateRight_spec as ⟨right', right'_spec, right'_inv⟩
+      · simp [bf_2, bf1_is_n1, bf1_def, left_inv]; split_conjs
+        · apply implication_over_all left1_bnd (by scalar_tac)
+        · apply implication_over_all right1_bnd (by scalar_tac)
+      /- TOOD: Update the drawings
+                    ┌────tree────┐
+                    │     H+3    │
+                    ▼            ▼
+             ┌───right1──┐     right
+             │   (left') │       H
+             ▼     H+2   ▼
+        ┌───left───┐   right2
+        │ (left1') │  (right1')
+        ▼   H+1    ▼     ≤H
+      left1      left2
+      (left2')   (right2')
+        H          ≤H
+      -/
+      cases right'
+      case Nil => -- This can't happen because rotateLeft does not destroy data
+        simp [BSTree.rotateRight] at right'_spec; split at right'_spec <;> simp at right'_spec
+      case Node v1' left1' right1' bf2 =>
+        have ⟨bf1'_def, left1'_inv, right1'_inv⟩ := right'_inv
+        cases left1
+        case Nil => 
+          simp [BSTree.rotateRight] at right'_spec
+          obtain ⟨left1_nil, right1_nil, right1'_nil⟩ := right'_spec
+          simp [left1_nil] at left1_H
+        case Node v2 left2 right2 bf2 =>
+          simp at right'_spec
+          simp [BSTree.rotateRight] at right'_spec
+          obtain ⟨_, _, _⟩ := right'_spec
+          have: left2.toBS.height ⊔ right2.toBS.height = H := by
+            simp at right_H
+            omega
+          simp [balancingFactor_Node] at left1_bnd
+
+          progress as ⟨tree', tree'_spec, tree'_inv⟩
+          · unfold AVLTree.invariant
+            simp only [right'_inv,left_inv]
+            simp [balancingFactor_Node, *]
+            omega
+          · simp [balancingFactor_Node, right_H]; split_conjs
+            · simp [*]; omega
+            · apply implication_over_all left_bnd (by omega)
+            · simp [*]; omega
+            · simp [*]
+              apply implication_over_all left1_bnd.right.left (by omega)
+            · simp [*]; split_conjs
+              · simp [balancingFactor_Node]; omega
+              · apply implication_over_all left1_bnd.right.right (by omega)
+              · apply implication_over_all right1_bnd (by omega)
+          simp [tree'_inv, tree'_spec, BSTree.rotateLeft, *, balancingFactor_Node]
+          split_conjs <;> omega
+    case neg bf1_ne_1 bf1_ne_n1 => -- Impossible!
+      scalar_tac/- }}} -/
+
 @[pspec]
 theorem rebalance_spec(tree: AVLTree Isize)
 : tree.invariant
