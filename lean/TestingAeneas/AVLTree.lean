@@ -741,7 +741,7 @@ theorem rebalance_preserves_inv_right{value: Isize}{left right: AVLTree Isize}{b
       · simp [bf_2, bf1_is_n1, bf1_def, left_inv]; split_conjs
         · apply implication_over_all left1_bnd (by scalar_tac)
         · apply implication_over_all right1_bnd (by scalar_tac)
-      /- TOOD: Update the drawings
+      /- TODO: Update the drawings
                     ┌────tree────┐
                     │     H+3    │
                     ▼            ▼
@@ -794,103 +794,50 @@ theorem rebalance_preserves_inv_right{value: Isize}{left right: AVLTree Isize}{b
     case neg bf1_ne_1 bf1_ne_n1 => -- Impossible!
       scalar_tac/- }}} -/
 
+
 @[pspec]
-theorem rebalance_spec(tree: AVLTree Isize)
-: tree.invariant
--> tree.toBS.all_subtrees (·.balancingFactor ≤ 1)
+theorem rebalance_spec_left{value: Isize}{left right: AVLTree Isize}{bf: I8}
+: let tree := AVLTree.Node value left right bf
+  tree.invariant
+-> tree.toBS.balancingFactor = 2
+-> left.toBS.all_subtrees (·.balancingFactor.natAbs ≤ 1)
+-> right.toBS.all_subtrees (·.balancingFactor.natAbs ≤ 1)
+-> left.toBS.balancingFactor ≠ 0
 -> ∃ tree',
     AVLTreeIsize.rebalance tree = .ok tree' ∧
-    tree'.toBS = tree.toBS.rebalance /- ∧
-    tree'.invariant ∧ 
-    tree.toBS.all_subtrees (·.balancingFactor ≤ 1) -/
-:= by/- {{{ -/
-  intro avl_inv noOverflow
-  rw [AVLTreeIsize.rebalance.eq_def]
-  split
-  case _ => simp [BSTree.rebalance]
-  case _ X vX Z D bfX =>
-    simp at noOverflow
-    obtain ⟨bfX_bnd, Z_bnd, D_bnd⟩ := noOverflow
-    have ⟨bfX_spec, Z_avl, D_avl⟩ := avl_inv
-    split_ifs 
-    case pos bfX_is_2 =>
-      subst bfX_is_2
-      simp [AVLTreeIsize.balance_factor]
-      cases Z
-      case Nil => simp at *; simp [BSTree.rebalance, *]
-      case Node vZ A Y bfZ =>
-        simp at *
-        obtain ⟨bfZ_spec, A_inv, Y_inv⟩ := Z_avl
-        split_ifs
-        case pos bfZ_is_1 =>
-          /-
-                 ⟨X⟩
-                Y  ᵈ  >>     Y
-              Z  ᶜ         Z   X
-             ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-          -/
-          simp [BSTree.rebalance, avl_inv, bfZ_is_1]
-          progress
+    tree'.toBS = tree.toBS.rebalance  ∧
+    tree'.invariant ∧
+    tree'.toBS.all_subtrees (·.balancingFactor.natAbs ≤ 1)
+:= by 
+  intro tree tree_inv bf_2 left_bal right_bal left_heavy
+  have ⟨tree', tree'_spec, tree'_inv, tree'_bal⟩ := rebalance_preserves_inv_left tree_inv bf_2 left_bal right_bal left_heavy
+  exists tree'; simp [tree, tree'_inv, tree'_spec, tree'_bal]
 
-          simp [*,BSTree.rebalance]
-          simp [*, BSTree.rotateRight]
-          progress
-          · simp; assumption
-          · simp [AVLTree.bf_bounded]; scalar_tac
-        case pos _ bfZ_is_n1 =>
-          /-
-                X           ⟨X⟩            
-             ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
-             ᵃ  Y        Z  ᶜ          Z   X
-               ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-          -/
-          subst bfZ_is_n1
-          simp [AVLTreeIsize.rotateRight]
-          cases A <;> simp
-          · simp at *
-          · progress
-            progress
-            progress
-            progress
-            simp
-            sorry
-          unfold BSTree.rebalance
-          simp [*] at *
-        case neg _ _ =>
-          simp [*] at *
-    case pos _ bfX_is_n2 =>
-      -- NOTE: I expect this to be symmetrical to the previous case
-      subst bfX_is_n2
-      simp [AVLTreeIsize.balance_factor]
-      cases D <;> simp at *
-      case Node vD A Y bfD =>
-        obtain ⟨bfD_spec, A_inv, Y_inv⟩ := D_avl
-        split_ifs
-        case pos bfD_is_1 =>
-          /- NOTE: Letters not accurate due to copy-paste
-                 ⟨X⟩
-                Y  ᵈ  >>     Y
-              Z  ᶜ         Z   X
-             ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-          -/
-          subst bfD_is_1
-          unfold BSTree.rebalance
-          simp [*] at *
-        case pos _ bfD_is_n1 =>
-          /- NOTE: Letters not accurate due to copy-paste
-                X           ⟨X⟩            
-             ⟨Z⟩  ᵈ  >>    Y  ᵈ   >>     Y
-             ᵃ  Y        Z  ᶜ          Z   X
-               ᵇ ᶜ       ᵃ ᵇ          ᵃ ᵇ ᶜ ᵈ
-          -/
-          subst bfD_is_n1
-          unfold BSTree.rebalance
-          simp [*] at *
-        case neg _ _ =>
-          simp at *; simp [BSTree.rebalance, *] -- NOTE: Same as bellow `neg` branch
-    case neg bf1_ne_2 bf1_ne_n2 =>
-      -- Here I simply have to show that BSTree does nothing as well.
-      simp at *; simp [BSTree.rebalance, *]/- }}} -/
+  simp [tree] at tree_inv bf_2
+  simp [tree_inv] at bf_2
+    
+  simp [BSTree.rebalance]
+  simp [tree_inv, bf_2]
+
+  cases left
+  case Nil => sorry -- Impossible
+  case Node v1 left1 right1 bf1 =>
+    simp at tree_inv
+    simp [tree_inv]
+
+    if bf1_1: bf1.val = 1 then
+      simp [bf1_1]
+      simp [BSTree.rotateRight]
+      simp [<-tree'_spec]
+      sorry
+    else if bf1_n1: bf1.val = -1 then
+      simp [bfc1_n1]
+      sorry
+    else
+      have: bf1 = 0 := by omega
+      contradiction
+
+  /- rw [AVLTreeIsize.rebalance.eq_def] -/
 
 theorem rebalance_correct_left[LinearOrder α][IsTotal α (·≤·)](value: α)(left right: BSTree α)
 : left.is_avl
