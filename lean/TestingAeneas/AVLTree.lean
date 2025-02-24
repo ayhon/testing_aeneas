@@ -464,6 +464,47 @@ theorem rotateRight_spec(tree: AVLTree Isize)
     · scalar_tac
     · scalar_tac/- }}} -/
 
+theorem rotateLeft_toSpec(tree: BSTree α)
+: tree.rotateLeft.toSpec = tree.toSpec
+:= by/- {{{ -/
+  cases tree
+  case Nil => simp [BSTree.rotateLeft]
+  case Node value left right =>
+    simp [BSTree.rotateLeft]
+    cases right
+    case Nil => simp
+    case Node v1 left1 right1 =>
+      simp
+      apply Set.ext
+      intro x; simp
+      apply Iff.intro
+      case mp =>
+        intro h
+        obtain (h | ((h | h) | h)) | h := h <;> simp [h]
+      case mpr =>
+        intro h
+        obtain (h | h) | ((h | h) | h) := h <;> simp [h]/- }}} -/
+
+theorem rotateRight_toSpec(tree: BSTree α)
+: tree.rotateRight.toSpec = tree.toSpec
+:= by/- {{{ -/
+  cases tree
+  case Nil => simp [BSTree.rotateRight]
+  case Node value left right =>
+    simp [BSTree.rotateRight]
+    cases left
+    case Nil => simp
+    case Node v1 left1 right1 =>
+      simp
+      apply Set.ext
+      intro x; simp
+      apply Iff.intro
+      case mp =>
+        intro h
+        obtain (h | h) | ((h | h) | h) := h <;> simp [h]
+      case mpr =>
+        intro h
+        obtain (h | ((h | h) | h)) | h := h <;> simp [h]/- }}} -/
   
 end Rotate/- }}} -/
 
