@@ -464,27 +464,6 @@ theorem rotateRight_spec(tree: AVLTree Isize)
     · scalar_tac
     · scalar_tac/- }}} -/
 
-theorem rotateLeft_left_nil{v v': α}{left right right': BSTree α}
-: BSTree.Node v' .Nil right' = (BSTree.Node v left right).rotateLeft
--> left = .Nil ∧ right = .Nil ∧ right' = .Nil
-:= match left, right with
-   | .Nil, .Nil => by simp [BSTree.rotateLeft]
-    -- The only case which makes sense
-   | .Node v2 l1 r1, .Nil  => by simp [BSTree.rotateLeft]
-    -- In this case rotate does nothing but .Node .. ≠ .Nil
-   | _, .Node v2 l1 r1  => by simp [BSTree.rotateLeft]
-    -- Then rotateLeft happens but we have that Nil = .. !
-
-theorem rotateRight_right_nil{v v': α}{left right left': BSTree α}
-: BSTree.Node v' left' .Nil = (BSTree.Node v left right).rotateRight
--> left = .Nil ∧ right = .Nil ∧ left' = .Nil
-:= match left, right with
-   | .Nil, .Nil => by simp [BSTree.rotateRight] 
-    -- The only case which makes sense
-   | .Nil, .Node v2 l1 r1  => by simp [BSTree.rotateRight]
-    -- In this case rotate does nothing but .Node .. ≠ .Nil
-   | .Node v2 l1 r1, _ => by simp [BSTree.rotateRight]
-    -- Then rotateRight happens but we have that Nil = .. !
   
 end Rotate/- }}} -/
 
