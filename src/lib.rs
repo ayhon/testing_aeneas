@@ -352,8 +352,9 @@ impl AVLTree<isize>{
                 value: target, left: Box::new(Self::Nil), right: Box::new(Self::Nil), bf: 0
             }, true),
             Self::Node{value: curr, left, right, bf} if target < curr => {
-                let (left, did_height_increase) = left.insertAndWarn(target);
-                let bf = if did_height_increase {bf + 1} else { bf };
+                let (left, did_left_height_increase) = left.insertAndWarn(target);
+                let did_height_increase = did_left_height_increase && bf == 0;
+                let bf = if did_left_height_increase {bf + 1} else { bf };
                 let res = Self::Node{value: curr, left: Box::new(left), right, bf};
                 if bf == 2 {
                     (res.rebalance(), false)
@@ -362,8 +363,9 @@ impl AVLTree<isize>{
                 }
             }
             Self::Node{value: curr, left, right, bf} if target > curr => {
-                let (right, did_height_increase) = right.insertAndWarn(target);
-                let bf = if did_height_increase {bf - 1} else { bf };
+                let (right, did_right_height_increase) = right.insertAndWarn(target);
+                let did_height_increase = did_right_height_increase && bf == 0;
+                let bf = if did_right_height_increase {bf - 1} else { bf };
                 let res = Self::Node{value: curr, left, right: Box::new(right), bf};
                 if bf == -2 {
                     (res.rebalance(), false)
