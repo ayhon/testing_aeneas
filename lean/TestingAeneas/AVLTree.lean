@@ -104,10 +104,10 @@ def BSTree.insert_rebalance[LT α][DecidableLT α](value: α): BSTree α -> BSTr
   let res := 
     if value < curr then
       Node curr (left.insert_rebalance value) right
-    else if value < curr then
+    else if curr < value then
       Node curr left (right.insert_rebalance value)
     else
-      Node value left right
+      Node value left right -- since value = curr
   if res.balancingFactor.natAbs = 2 then
     res.rebalance
   else
