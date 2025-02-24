@@ -285,15 +285,15 @@ def AVLTreeIsize.rebalance (self : AVLTree Isize) : Result (AVLTree Isize) :=
 /- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::insertAndWarn]:
    Source: 'src/lib.rs', lines 349:4-376:5 -/
 divergent def AVLTreeIsize.insertAndWarn
-  (self : AVLTree Isize) (value : Isize) : Result ((AVLTree Isize) × Bool) :=
+  (self : AVLTree Isize) (target : Isize) : Result ((AVLTree Isize) × Bool) :=
   match self with
   | AVLTree.Nil =>
-    Result.ok (AVLTree.Node value AVLTree.Nil AVLTree.Nil 0#i8, true)
+    Result.ok (AVLTree.Node target AVLTree.Nil AVLTree.Nil 0#i8, true)
   | AVLTree.Node curr left right bf =>
-    if value < curr
+    if target < curr
     then
       do
-      let p ← AVLTreeIsize.insertAndWarn left value
+      let p ← AVLTreeIsize.insertAndWarn left target
       let (left1, did_height_increase) := p
       if did_height_increase
       then
@@ -302,21 +302,21 @@ divergent def AVLTreeIsize.insertAndWarn
         if bf1 = 2#i8
         then
           do
-          let a ← AVLTreeIsize.rebalance (AVLTree.Node value left1 right bf1)
+          let a ← AVLTreeIsize.rebalance (AVLTree.Node curr left1 right bf1)
           Result.ok (a, false)
-        else Result.ok (AVLTree.Node value left1 right bf1, true)
+        else Result.ok (AVLTree.Node curr left1 right bf1, true)
       else
         if bf = 2#i8
         then
           do
-          let a ← AVLTreeIsize.rebalance (AVLTree.Node value left1 right bf)
+          let a ← AVLTreeIsize.rebalance (AVLTree.Node curr left1 right bf)
           Result.ok (a, false)
-        else Result.ok (AVLTree.Node value left1 right bf, false)
+        else Result.ok (AVLTree.Node curr left1 right bf, false)
     else
-      if value > curr
+      if target > curr
       then
         do
-        let p ← AVLTreeIsize.insertAndWarn right value
+        let p ← AVLTreeIsize.insertAndWarn right target
         let (right1, did_height_increase) := p
         if did_height_increase
         then
@@ -326,17 +326,16 @@ divergent def AVLTreeIsize.insertAndWarn
           then
             do
             let a ←
-              AVLTreeIsize.rebalance (AVLTree.Node value left right1 bf1)
+              AVLTreeIsize.rebalance (AVLTree.Node curr left right1 bf1)
             Result.ok (a, false)
-          else Result.ok (AVLTree.Node value left right1 bf1, true)
+          else Result.ok (AVLTree.Node curr left right1 bf1, true)
         else
           if bf = (-2)#i8
           then
             do
-            let a ←
-              AVLTreeIsize.rebalance (AVLTree.Node value left right1 bf)
+            let a ← AVLTreeIsize.rebalance (AVLTree.Node curr left right1 bf)
             Result.ok (a, false)
-          else Result.ok (AVLTree.Node value left right1 bf, false)
+          else Result.ok (AVLTree.Node curr left right1 bf, false)
       else Result.ok (self, false)
 
 /- [testing_aeneas::{testing_aeneas::AVLTree<isize>}#3::insert]:

@@ -346,25 +346,25 @@ impl AVLTree<isize>{
         }
     }
 
-    fn insertAndWarn(self, value: isize) -> (Self,bool) {
+    fn insertAndWarn(self, target: isize) -> (Self,bool) {
         match self {
             Self::Nil => (Self::Node{
-                value, left: Box::new(Self::Nil), right: Box::new(Self::Nil), bf: 0
+                value: target, left: Box::new(Self::Nil), right: Box::new(Self::Nil), bf: 0
             }, true),
-            Self::Node{value: curr, left, right, bf} if value < curr => {
-                let (left, did_height_increase) = left.insertAndWarn(value);
+            Self::Node{value: curr, left, right, bf} if target < curr => {
+                let (left, did_height_increase) = left.insertAndWarn(target);
                 let bf = if did_height_increase {bf + 1} else { bf };
-                let res = Self::Node{value, left: Box::new(left), right, bf};
+                let res = Self::Node{value: curr, left: Box::new(left), right, bf};
                 if bf == 2 {
                     (res.rebalance(), false)
                 } else {
                     (res, did_height_increase)
                 }
             }
-            Self::Node{value: curr, left, right, bf} if value > curr => {
-                let (right, did_height_increase) = right.insertAndWarn(value);
+            Self::Node{value: curr, left, right, bf} if target > curr => {
+                let (right, did_height_increase) = right.insertAndWarn(target);
                 let bf = if did_height_increase {bf - 1} else { bf };
-                let res = Self::Node{value, left, right: Box::new(right), bf};
+                let res = Self::Node{value: curr, left, right: Box::new(right), bf};
                 if bf == -2 {
                     (res.rebalance(), false)
                 } else {
