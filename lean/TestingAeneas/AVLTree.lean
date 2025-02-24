@@ -1042,6 +1042,32 @@ theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BST
     · have := insert_height value right
       scalar_tac/- }}} -/
 
+theorem insert_rebalance_toSpec[BEq α][LE α][LinearOrder α][DecidableLT α](value: α)(tree: BSTree α)
+: (tree.insert_rebalance value).toSpec = insert value tree.toSpec 
+:= by/- {{{ -/
+  cases tree
+  case Nil => simp [BSTree.insert_rebalance]
+  case Node curr left right =>
+    rw [BSTree.insert_rebalance]
+    if value_lt_curr: value < curr then
+      simp [value_lt_curr]
+      split_ifs
+      case pos bf_2 =>
+        simp [<-rebalance_spec, insert_rebalance_toSpec, Set.insert_comm, Set.insert_union]
+      case neg =>
+        simp [insert_rebalance_toSpec, Set.insert_comm, Set.insert_union]
+    else if curr_lt_value: curr < value then
+      simp [curr_lt_value]
+      split_ifs
+      case pos bf_2 =>
+        simp [<-rebalance_spec, insert_rebalance_toSpec, Set.insert_comm, Set.insert_union]
+      case neg =>
+        simp [insert_rebalance_toSpec, Set.insert_comm, Set.insert_union]
+    else
+      have value_curr: value = curr := eq_of_le_of_le (le_of_not_gt (by assumption)) (le_of_not_gt (by assumption))
+      simp [value_curr]
+      split <;> simp [<-rebalance_spec]/- }}} -/
+
 @[pspec]
 theorem insert_and_warn_spec{tree: AVLTree Isize}(value: Isize)
 : tree.invariant
@@ -1049,41 +1075,317 @@ theorem insert_and_warn_spec{tree: AVLTree Isize}(value: Isize)
 -> ∃ tree' b,
   AVLTreeIsize.insertAndWarn tree value = .ok (tree', b) ∧
   tree' = tree.toBS.insert_rebalance value ∧  -- This is also only true if we didn't have to rebalance all previous nodes.
-  (if b then (tree'.toBS.height = tree.toBS.height + 1) else (tree'.toBS.height = tree.toBS.height)) ∧
+  (if b 
+   then (tree'.toBS.height = tree.toBS.height + 1 ∧ tree'.toBS = tree.toBS.insert value) 
+   else (tree'.toBS.height = tree.toBS.height)) ∧
   tree'.invariant ∧
   tree'.toBS.is_avl
 := by/- {{{ -/
   intro tree_inv ⟨tree_bal, tree_wf⟩
   rw [AVLTreeIsize.insertAndWarn]
   cases tree
-  case Nil => simp [BSTree.insert_rebalance]
+  case Nil => 
+    -- When the tree is empty, the result is trivially true
+    simp [BSTree.insert_rebalance, balancingFactor_Node]
   case Node curr left right bf =>
     simp at *
     obtain ⟨bf_inv, left_inv, right_inv⟩ := tree_inv
     obtain ⟨bf_bal, left_bal, right_bal⟩ := tree_bal
     obtain ⟨left_wf, right_wf, left_bs, right_bs⟩ := tree_wf
-    split -- If I do `split_ifs` here I get a `bf=2` hypothesis? Which makes no sense?
+    rw [bf_inv] at bf_bal
+
+    -- When the tree is not empty, we need to analyze all branches in the control
+    -- flow. In particular, this comes to analyzing how value and curr compare.
+    split -- NOTE: If I do `split_ifs` here I get a `bf=2` hypothesis? Which makes no sense?
     case isTrue value_lt_curr =>
+      -- In this case, we're inserting the value in the left hand side.
       have: left.toBS.is_avl := by constructor <;> assumption
       progress as ⟨left', b, left'_spec, b_spec, left'_inv, left'_avl⟩
+      obtain ⟨left'_bal,left'_wf⟩ := left'_avl
+
+      -- Now we need to analyze whether the height of the tree increased or not
       if b_val: b then
+        -- If the height of the tree increased, we need to update the balancing factor.
         simp [b_val]
         simp [b_val] at b_spec
+        
+        obtain ⟨left'_height, left'_is_insert⟩ := b_spec
+
         progress as ⟨bf', bf'_spec⟩
-        have: (AVLTree.Node value left' right bf').invariant := by scalar_tac
+        have bf'_def: bf' = (left'.toBS.height - right.toBS.height: Int) := by
+          simp [<-bf_inv, balancingFactor_Node, left'_height, bf'_spec, left'_inv, right_inv]
+          omega
+
+        -- If when updating the balancing factor we have that this node becomes
+        -- unbalanced, then we perform the rebalance operation.
         split
         case isTrue bf'_2 =>
-          progress --as ⟨_⟩
-          sorry
+          have right_avl: right.toBS.is_avl := by constructor <;> assumption
+          simp [bf'_2] at bf'_def
+
+          -- BSTree.insert_rebalance catch up
+          simp [BSTree.insert_rebalance, value_lt_curr, balancingFactor_Node, <-left'_is_insert, <-bf'_def]
+          
+          have tree'_wf: (AVLTree.Node curr left' right bf').toBS.well_formed := by
+            simp [left'_wf, right_wf]
+            split_conjs
+            · have := SetRefinement.insert_spec left value left_wf |>.left
+              simp [left'_is_insert, <-this, value_lt_curr]
+              exact left_bs
+            · exact right_bs
+          have: left'.toBS.balancingFactor ≠ 0 := by
+            -- The reason why this is true is because when inserting an element 
+            -- into `tree`, we at most increase the the height of the tree by
+            -- one. For bf' = 2 and bf1' = 0 to hold, we would need for 
+            -- bf = 2 to also hold, but we have tree.bal!
+            intro bf1'_0
+            simp [balancingFactor_Node] at bf_inv
+            cases left 
+            case Nil => 
+              -- Can't be, because bf = 2
+              simp at *; omega
+            case Node v1 left right bf1 =>
+              simp at left'_is_insert
+              if h: value.val < v1 then
+                simp [h] at left'_is_insert
+                simp [left'_is_insert, balancingFactor_Node, Nat.max] at left'_height bf1'_0
+                omega
+              else if h2: v1.val < value then
+                simp [h,h2] at left'_is_insert
+                simp [left'_is_insert, balancingFactor_Node, Nat.max] at left'_height bf1'_0
+                omega
+              else
+                have: v1 = value := eq_of_le_of_le (le_of_not_gt (by assumption)) (le_of_not_gt (by assumption))
+                simp [this] at left'_is_insert
+                simp [left'_is_insert, balancingFactor_Node] at left'_height
+
+          progress with rebalance_preserves_inv_left as ⟨tree'', tree''_spec, tree''_inv, tree''_bal, tree''_height⟩
+          · simp [left'_inv, right_inv]
+            simp [<-bf_inv, left'_height, bf'_spec, balancingFactor_Node]
+            omega
+          · simp [balancingFactor_Node]
+            simp [<-bf_inv, left'_height, bf'_spec, balancingFactor_Node]
+            omega
+
+          simp [left'_spec] at bf'_def
+          simp at tree''_spec
+
+          simp [<-bf'_def, balancingFactor_Node]
+          simp [<-left'_spec]
+          simp [tree''_spec, tree''_inv, tree''_bal]
+          split_conjs
+          · simp [left'_height] at tree''_height
+            simp [Nat.max] at *
+            have : left.toBS.height >= right.toBS.height := by scalar_tac
+            omega
+          · rw [<-tree''_spec]
+            exact rebalance_preserves_wf tree'_wf
+            
         case isFalse bf'_ne_2 =>
-          sorry
+          -- No need to rebalance
+
+          -- If bf + 1 is not 2 then bf ≠ 1 so bf = 0 or bf = -1
+          have bf_ub: bf.val < 1 := by
+            simp [bf'_spec] at bf'_ne_2
+            omega
+          have bf_lb: -1 <= bf.val := by
+            omega
+          have false_branch: ¬ bf'.val.natAbs = 2 := by 
+            simp [bf'_spec]
+            simp [bf'_spec] at bf'_ne_2
+            omega
+          simp [bf'_def] at false_branch
+          
+          simp [BSTree.insert_rebalance, value_lt_curr, balancingFactor_Node, <-left'_spec, false_branch]
+          simp only [left'_height, Nat.max, this]
+          simp [left'_inv, right_inv, bf'_def, left'_height, right_bal, left'_bal, left'_wf, right_wf, right_bs]
+          split_conjs <;> try assumption
+          · simp only [bf'_def] at *
+            simp [left'_height] at *
+            if h: bf = 0#i8 then
+              simp [h, left'_is_insert]
+              simp [Scalar.eq_equiv] at h
+              simp [<-bf_inv, balancingFactor_Node] at h
+              omega
+            else if h2: bf.val = (-1)#i8 then
+              simp [h, left'_is_insert]
+              simp [Scalar.eq_equiv] at h
+              simp [<-bf_inv, balancingFactor_Node] at h
+              omega
+            else
+              simp [Scalar.eq_equiv] at h h2
+              simp [<-bf_inv, balancingFactor_Node] at h h2
+              omega
+          · simp only [bf'_def, left'_height] at bf'_spec
+            simp only [<-bf_inv, balancingFactor_Node] at bf_ub bf_lb
+            omega
+          · simp [left'_spec, insert_rebalance_toSpec, value_lt_curr]
+            assumption
       else
-        sorry
-    case' isFalse _ => split
-    case isTrue curr_lt_value =>
+        -- If the height of the tree did not increase, there's no need to rebalance.
+        simp [b_val]
+        simp [b_val] at b_spec
+        simp [balancingFactor_Node] at bf_inv
+
+        have: ¬ bf = 2#i8 := by scalar_tac
+        simp [this]
+
+        simp [b_spec, Nat.max, balancingFactor_Node]
+        split_conjs <;> try assumption
+        · simp [left'_spec, BSTree.insert_rebalance, value_lt_curr, balancingFactor_Node]
+          simp [<-left'_spec, b_spec, bf_inv]
+          split <;> try omega
+          rfl
+        · simp [bf_inv, bf_bal]
+        · simp [left'_spec, insert_rebalance_toSpec, value_lt_curr]
+          assumption
+    case' isFalse _ => split -- NOTE: This is just to continue with the if statements
+    case isTrue ne_value_lt_curr curr_lt_value =>
+      -- In this case, we're inserting the value in the right hand side.
       have: right.toBS.is_avl := by constructor <;> assumption
-      sorry
+
+      progress as ⟨right', b, right'_spec, b_spec, right'_inv, right'_avl⟩
+      obtain ⟨right'_bal,right'_wf⟩ := right'_avl
+
+      -- Now we need to analyze whether the height of the tree increased or not
+      if b_val: b then
+        -- If the height of the tree increased, we need to update the balancing factor.
+        simp [b_val]
+        simp [b_val] at b_spec
+        
+        obtain ⟨right'_height, right'_is_insert⟩ := b_spec
+
+        progress as ⟨bf', bf'_spec⟩
+        have bf'_def: bf' = (left.toBS.height - right'.toBS.height: Int) := by
+          simp [<-bf_inv, balancingFactor_Node, right'_height, bf'_spec, right'_inv, right_inv]
+          omega
+
+        -- If when updating the balancing factor we have that this node becomes
+        -- unbalanced, then we perform the rebalance operation.
+        split
+        case isTrue bf'_2 =>
+          have right_avl: right.toBS.is_avl := by constructor <;> assumption
+          simp [bf'_2] at bf'_def
+
+          -- BSTree.insert_rebalance catch up
+          simp [BSTree.insert_rebalance, ne_value_lt_curr, curr_lt_value, balancingFactor_Node, <-right'_is_insert, <-bf'_def]
+          
+          have tree'_wf: (AVLTree.Node curr left right' bf').toBS.well_formed := by
+            simp [right'_wf, left_wf]
+            split_conjs
+            · exact left_bs
+            · simp [right'_spec, insert_rebalance_toSpec, curr_lt_value]
+              exact right_bs
+          have: right'.toBS.balancingFactor ≠ 0 := by
+            -- The reason why this is true is because when inserting an element 
+            -- into `tree`, we at most increase the the height of the tree by
+            -- one. For bf' = 2 and bf1' = 0 to hold, we would need for 
+            -- bf = 2 to also hold, but we have tree.bal!
+            intro bf1'_0
+            simp [balancingFactor_Node] at bf_inv
+            cases right 
+            case Nil => 
+              -- Can't be, because bf = 2
+              simp at *; omega
+            case Node v1 right right bf1 =>
+              simp at right'_is_insert
+              if h: value.val < v1 then
+                simp [h] at right'_is_insert
+                simp [right'_is_insert, balancingFactor_Node, Nat.max] at right'_height bf1'_0
+                omega
+              else if h2: v1.val < value then
+                simp [h,h2] at right'_is_insert
+                simp [right'_is_insert, balancingFactor_Node, Nat.max] at right'_height bf1'_0
+                omega
+              else
+                have: v1 = value := eq_of_le_of_le (le_of_not_gt (by assumption)) (le_of_not_gt (by assumption))
+                simp [this] at right'_is_insert
+                simp [right'_is_insert, balancingFactor_Node] at right'_height
+
+          progress with rebalance_preserves_inv_right as ⟨tree'', tree''_spec, tree''_inv, tree''_bal, tree''_height⟩
+          · simp [right'_inv, left_inv]
+            simp [<-bf_inv, right'_height, bf'_spec, balancingFactor_Node]
+            omega
+          · simp [balancingFactor_Node]
+            simp [<-bf_inv, right'_height, bf'_spec, balancingFactor_Node]
+            omega
+
+          simp [right'_spec] at bf'_def
+          simp at tree''_spec
+
+          simp [<-bf'_def, balancingFactor_Node]
+          simp [<-right'_spec]
+          simp [tree''_spec, tree''_inv, tree''_bal]
+          split_conjs
+          · simp [right'_height] at tree''_height
+            simp [Nat.max] at *
+            have : right.toBS.height >= left.toBS.height := by scalar_tac
+            omega
+          · rw [<-tree''_spec]
+            exact rebalance_preserves_wf tree'_wf
+            
+        case isFalse bf'_ne_n2 =>
+          -- No need to rebalance
+
+          -- If bf - 1 is not -2 then bf ≠ -1 so bf = 0 or bf = 1
+          have bf_ub: 0 <= bf.val := by
+            simp [bf'_spec] at bf'_ne_n2
+            omega
+          have bf_lb: bf.val <= 1 := by
+            omega
+          have false_branch: ¬ bf'.val.natAbs = 2 := by 
+            simp [bf'_spec]
+            simp [bf'_spec] at bf'_ne_n2
+            omega
+          simp [bf'_def] at false_branch
+          
+          simp [BSTree.insert_rebalance, ne_value_lt_curr, curr_lt_value, balancingFactor_Node, <-right'_spec, false_branch]
+          simp only [right'_height, Nat.max, this]
+          simp [right'_inv, left_inv, bf'_def, right'_height, left_bal, right'_bal, right'_wf, left_wf]
+          split_conjs <;> try assumption
+          · simp only [bf'_def] at *
+            simp [right'_height] at *
+            if h: bf = 0#i8 then
+              simp [h, right'_is_insert]
+              simp [Scalar.eq_equiv] at h
+              simp [<-bf_inv, balancingFactor_Node] at h
+              omega
+            else if h2: bf.val = 1#i8 then
+              simp [h, right'_is_insert]
+              simp [Scalar.eq_equiv] at h
+              simp [<-bf_inv, balancingFactor_Node] at h
+              omega
+            else
+              simp [Scalar.eq_equiv] at h h2
+              simp [<-bf_inv, balancingFactor_Node] at h h2
+              omega
+          · simp only [bf'_def, right'_height] at bf'_spec
+            simp only [<-bf_inv, balancingFactor_Node] at bf_ub bf_lb
+            omega
+          · simp [right'_spec, insert_rebalance_toSpec, ne_value_lt_curr, curr_lt_value]
+            assumption
+      else
+        -- If the height of the tree did not increase, there's no need to rebalance.
+        simp [b_val]
+        simp [b_val] at b_spec
+        simp [balancingFactor_Node] at bf_inv
+
+        have: ¬ bf = (-2)#i8 := by scalar_tac
+        simp [this]
+
+        simp [b_spec, Nat.max, balancingFactor_Node]
+        split_conjs <;> try assumption
+        · simp [right'_spec, BSTree.insert_rebalance, ne_value_lt_curr, curr_lt_value, balancingFactor_Node]
+          simp [<-right'_spec, b_spec, bf_inv]
+          split <;> try omega
+          rfl
+        · simp [bf_inv, bf_bal]
+        · simp [right'_spec, insert_rebalance_toSpec, ne_value_lt_curr, curr_lt_value]
+          assumption
     case isFalse value_ge_curr curr_ge_value =>
+      -- In this case, we do not insert the value, and therefore we do not
+      -- change the tree. Our previous hypothesis allow us to close the goal
+      -- quicly.
       have: value = curr := by scalar_tac
       subst this; simp [BSTree.insert_rebalance]
       simp [bf_inv] at *
@@ -1099,7 +1401,11 @@ theorem insert_spec{tree: AVLTree Isize}(value: Isize)
   tree' = tree.toBS.insert_rebalance value ∧
   tree'.invariant ∧
   tree'.toBS.is_avl
-:= by sorry
+:= by /- {{{ -/
+  intro tree_inv tree_avl
+  rw [AVLTreeIsize.insert]
+  progress with insert_and_warn_spec as ⟨tree', b, tre'_spec, b_spec, tree'_inv, tree'_avl⟩
+  split_conjs <;> assumption/- }}} -/
 end Insert/- }}} -/
 
 section Contains/- {{{ -/
