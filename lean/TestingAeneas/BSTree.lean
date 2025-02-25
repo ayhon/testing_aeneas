@@ -32,10 +32,10 @@ open testing_aeneas
     else 
       .Node curr left right
 
-@[simp] def BSTree.toSpec: BSTree α -> Set α
+@[simp] def BSTree.toSet: BSTree α -> Set α
 | .Nil => ∅
-| .Node v left right => {v} ∪ (toSpec left) ∪ (toSpec right)
-instance: Coe (Spec.BSTree α) (Set α) where coe := Spec.BSTree.toSpec
+| .Node v left right => {v} ∪ left.toSet ∪ right.toSet
+instance: Coe (Spec.BSTree α) (Set α) where coe := BSTree.toSet
 
 @[simp] def BSTree.well_formed[PartialOrder α][IsTotal α (·<=·)]: BSTree α -> Prop
 | .Nil => True
@@ -58,14 +58,13 @@ attribute [-simp] Bool.exists_bool
 attribute [local simp] Spec.BSTree.contains
 attribute [local simp] Spec.BSTree.insert
 open testing_aeneas.BSTree renaming toSpec -> toSet
-open Spec.BSTree (toSpec)
 
 namespace SetRefinement/- {{{ -/
 open Spec
 theorem left_right_disjoint_of_wf[PartialOrder α][IsTotal α (·<=·)]
   {curr: α}{left right: BSTree α}
-: (BSTree.Node curr left right).well_formed -> Disjoint (toSpec left) (toSpec right)
-:= by
+: (BSTree.Node curr left right).well_formed -> Disjoint left.toSet right.toSet
+:= by/- {{{ -/
   intro ⟨left_wf, right_wf, left_inv, right_inv⟩
   apply disjoint_iff.mpr; simp
   apply Set.subset_empty_iff.mp
@@ -74,12 +73,12 @@ theorem left_right_disjoint_of_wf[PartialOrder α][IsTotal α (·<=·)]
   have h2:=right_inv x xr
   have := Trans.trans h1 h2
   have := lt_irrefl x
-  contradiction
+  contradiction/- }}} -/
 
 theorem contains_spec[BEq α][LawfulBEq α][LinearOrder α][DecidableLT α][IsTotal α (· ≤ ·)]{tree: BSTree α}(target: α)
 : tree.well_formed
 -> (tree.contains target ↔ target ∈ (tree : Set α))
-:= by 
+:= by /- {{{ -/
   intro well_formed
   cases tree <;> simp at *
   case Node curr left right =>
@@ -107,13 +106,13 @@ theorem contains_spec[BEq α][LawfulBEq α][LinearOrder α][DecidableLT α][IsTo
         intro target_in_left
         have := left_inv _ target_in_left
         have := ne_of_lt (Trans.trans this target_ge_curr)
-        contradiction
+        contradiction/- }}} -/
 
 theorem insert_spec[BEq α][LinearOrder α][DecidableLT α][IsTotal α (·≤·)](tree: BSTree α)(value: α)
 : tree.well_formed
 -> let tree' := tree.insert value
-   insert value (toSpec tree) = ↑tree' ∧ tree'.well_formed
-:= by
+   insert value tree.toSet = ↑tree' ∧ tree'.well_formed
+:= by/- {{{ -/
   cases tree <;> simp
   case Node curr left right =>
     intro left_wf right_wf left_inv right_inv
@@ -136,7 +135,7 @@ theorem insert_spec[BEq α][LinearOrder α][DecidableLT α][IsTotal α (·≤·)
     case neg not_value_lt_curr not_value_gt_curr =>
       have: curr = value := eq_of_le_of_le (not_value_lt_curr) (not_value_gt_curr)
       subst this
-      simp; split_conjs <;> assumption
+      simp; split_conjs <;> assumption/- }}} -/
 
 end SetRefinement/- }}} -/
 
@@ -148,20 +147,20 @@ theorem tree_contains_spec(tree: BSTree Isize)(target: Isize)
 : ∃ b, 
     BSTreeIsize.contains tree target = Result.ok b ∧
     Spec.BSTree.contains ↑tree target = b
-:= by
+:= by/- {{{ -/
   cases tree <;> rw [BSTreeIsize.contains] <;> simp
   case Node curr left right =>
-    split_ifs <;> (try progress with tree_contains_spec as ⟨in_left, in_left_spec⟩) <;> simp [*]
+    split_ifs <;> (try progress with tree_contains_spec as ⟨in_left, in_left_spec⟩) <;> simp [*]/- }}} -/
 
 @[pspec]
 theorem tree_insert_spec(tree: BSTree Isize)(value: Isize)
 : ∃ tree',
     BSTreeIsize.insert tree value = Result.ok tree' ∧
     Spec.BSTree.insert value ↑tree = ↑tree'
-:= by
+:= by/- {{{ -/
   cases tree <;> rw [BSTreeIsize.insert] <;> simp
   case Node curr left right =>
-    split_ifs <;> (try progress with tree_insert_spec) <;> simp [*]
+    split_ifs <;> (try progress with tree_insert_spec) <;> simp [*]/- }}} -/
 
 end TreeRefinement/- }}} -/
 
