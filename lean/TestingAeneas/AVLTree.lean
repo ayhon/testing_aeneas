@@ -115,12 +115,12 @@ def BSTree.insert_rebalance[LT α][DecidableLT α](value: α): BSTree α -> BSTr
 end Operations/- }}} -/
 
 section Propositions/- {{{ -/
-@[simp] def BSTree.all_subtrees(cond: BSTree α -> Prop): BSTree α -> Prop
-| Nil => true
-| tree@(Node _ left right) => cond tree ∧ left.all_subtrees cond ∧ right.all_subtrees cond
-
-@[simp] abbrev BSTree.boundedBalancingFactor(bnd: Nat)(tree: BSTree α) :=
-  tree.all_subtrees (·.balancingFactor.natAbs <= bnd)
+@[simp] def BSTree.boundedBalancingFactor(bnd: Nat): BSTree α -> Prop
+| Nil => True
+| tree@(Node _ left right) => 
+  tree.balancingFactor.natAbs <= bnd ∧
+  left.boundedBalancingFactor bnd ∧
+  right.boundedBalancingFactor bnd
 
 @[simp] abbrev BSTree.balanced(tree: BSTree α) := tree.boundedBalancingFactor 1
 
@@ -197,10 +197,10 @@ theorem negate_spec(a: I8)
     simp at heq
     scalar_tac/- }}} -/
 
-theorem boundedBalancingFactor_expand{tree: BSTree α}{n m: Nat}
+@[simp] theorem boundedBalancingFactor_expand{tree: BSTree α}{n m: Nat}
 : n < m -> tree.boundedBalancingFactor n -> tree.boundedBalancingFactor m
 := by
-  cases tree <;> simp
+  cases tree <;> simp [BSTree.boundedBalancingFactor]
   case Node value left right =>
     intro n_m _ l r
     simp [boundedBalancingFactor_expand n_m, l, r]
@@ -402,7 +402,7 @@ theorem rebalance_preserves_inv_left{value: Isize}{left right: AVLTree Isize}{bf
       obtain ⟨left1_bnd, right1_bnd⟩ := left_bnd
       progress as ⟨tree', tree'_spec,tree'_inv⟩
       · simp [*]; omega
-      · simp [*, boundedBalancingFactor_expand (by decide : 1 < 2)]
+      · simp [*, boundedBalancingFactor_expand (by simp : 1 < 2)]
         omega
       simp only [BSTree.rotateRight] at tree'_spec
       simp [*, BSTree.rotateRight, balancingFactor_Node, BSTree.rebalance, Nat.max]
@@ -776,18 +776,6 @@ theorem rebalance_toSet[LinearOrder α][IsTotal α (·≤·)](tree: BSTree α)
 end Rebalance/- }}} -/
 
 section Insert/- {{{ -/
-/- theorem insert_height[BEq α][LE α][LT α][DecidableLT α](value: α)(tree: BSTree α) -/
-/- : (tree.insert value |>.height) <= tree.height + 1 -/
-/- := by/1- {{{ -1/ -/
-/-   cases tree -/
-/-   case Nil => simp [BSTree.insert] -/
-/-   case Node curr left right => -/
-/-     simp -/
-/-     split_ifs <;> simp [Nat.max] -/
-/-     · have := insert_height value left -/
-/-       scalar_tac -/
-/-     · have := insert_height value right -/
-/-       scalar_tac/1- }}} -1/ -/
 
 theorem insert_rebalance_toSet[BEq α][LE α][LinearOrder α][DecidableLT α](value: α)(tree: BSTree α)
 : (tree.insert_rebalance value).toSet = insert value tree.toSet 
