@@ -197,16 +197,14 @@ theorem negate_spec(a: I8)
     simp at heq
     scalar_tac/- }}} -/
 
-theorem implication_over_all{tree: BSTree α}{P Q: BSTree α -> Prop}
-: tree.all_subtrees P -> (∀ x, P x -> Q x) -> tree.all_subtrees Q
+theorem boundedBalancingFactor_expand{tree: BSTree α}{n m: Nat}
+: n < m -> tree.boundedBalancingFactor n -> tree.boundedBalancingFactor m
 := by
-  cases tree
-  case Nil => simp
+  cases tree <;> simp
   case Node value left right =>
-    simp; intro Px lih rih impl; split_conjs
-    · apply impl; assumption
-    · apply implication_over_all lih impl
-    · apply implication_over_all rih impl
+    intro n_m _ l r
+    simp [boundedBalancingFactor_expand n_m, l, r]
+    omega
 
 end Auxiliary/- }}} -/
 
@@ -313,8 +311,7 @@ theorem rotateRight_spec(tree: AVLTree Isize)
   -- because `simp` has nothing to do                   ┘
   case _ self v₁ A bf₁ inner v₂ B C bf₂ =>
     repeat progress
-    simp [*, BSTree.rotateRight]
-    scalar_tac/- }}} -/
+    simp [*, BSTree.rotateRight]; scalar_tac/- }}} -/
 
 theorem rotateLeft_toSet(tree: BSTree α)
 : tree.rotateLeft.toSet = tree.toSet
@@ -404,11 +401,9 @@ theorem rebalance_preserves_inv_left{value: Isize}{left right: AVLTree Isize}{bf
       -- which require manipulating the hypothesis a bit.
       obtain ⟨left1_bnd, right1_bnd⟩ := left_bnd
       progress as ⟨tree', tree'_spec,tree'_inv⟩
-      · simp [bf_2, bf1_is_1, bf1_def, tree_inv]
-      · simp [bf_2, bf1_is_1, bf1_def, left_inv]; split_conjs
-        · apply implication_over_all left1_bnd (by scalar_tac)
-        · apply implication_over_all right1_bnd (by scalar_tac)
-        · apply implication_over_all right_bnd (by scalar_tac)
+      · simp [*]; omega
+      · simp [*, boundedBalancingFactor_expand (by decide : 1 < 2)]
+        omega
       simp only [BSTree.rotateRight] at tree'_spec
       simp [*, BSTree.rotateRight, balancingFactor_Node, BSTree.rebalance, Nat.max]
       split_conj <;> scalar_tac
@@ -439,9 +434,7 @@ theorem rebalance_preserves_inv_left{value: Isize}{left right: AVLTree Isize}{bf
       -- We can apply the spec of rotateLeft to get to the following
       -- intermediary step, which is similar to the LEFT-LEFT case.
       progress with rotateLeft_spec as ⟨left', left'_spec, left'_inv⟩
-      · simp [*]; split_conjs
-        · apply implication_over_all left1_bnd (by omega)
-        · apply implication_over_all right1_bnd (by omega)
+      · simp [*, boundedBalancingFactor_expand (by decide: 1 < 2)]
       -- After this operation, this is the current state of our tree
       /-
                     ┌────tree────┐
@@ -469,14 +462,7 @@ theorem rebalance_preserves_inv_left{value: Isize}{left right: AVLTree Isize}{bf
         -- Now we can simply apply the rotateRight spec and solve the goal through simplification
         progress as ⟨tree', tree'_spec, tree'_inv⟩
         · simp [*]; omega
-        · simp [*]; split_conjs
-          · omega
-          · omega
-          · omega
-          · apply implication_over_all left1_bnd  (by omega) 
-          · apply implication_over_all left2_bnd  (by omega) 
-          · apply implication_over_all right2_bnd (by omega) 
-          · apply implication_over_all right_bnd  (by omega)
+        · simp [*, boundedBalancingFactor_expand (by decide: 1 < 2)]; omega
         simp [*, BSTree.rotateRight, Nat.max]
         omega/- }}} -/
 
@@ -557,12 +543,9 @@ theorem rebalance_preserves_inv_right{value: Isize}{left right: AVLTree Isize}{b
       -- which require manipulating the hypothesis a bit.
       simp at *
       progress as ⟨tree', tree'_spec,tree'_inv⟩
-      · simp [bf_2, bf1_is_1, bf1_def, tree_inv]
+      · simp[*]; omega -- simp [bf_2, bf1_is_1, bf1_def, tree_inv]
       · obtain ⟨bf1_bnd, left1_bnd, right1_bnd⟩ := right_bnd
-        simp [bf_2, bf1_is_1, bf1_def, left_inv]; split_conjs
-        · apply implication_over_all left_bnd (by scalar_tac)
-        · apply implication_over_all left1_bnd (by scalar_tac)
-        · apply implication_over_all right1_bnd (by scalar_tac)
+        simp [*, boundedBalancingFactor_expand (by decide: 1 < 2)]; omega
       simp [*, BSTree.rotateLeft, balancingFactor_Node, BSTree.rebalance, Nat.max]
       split_conjs <;> scalar_tac/- }}} -/
     case pos _ bf1_is_1 => /- {{{ -/
@@ -594,11 +577,8 @@ theorem rebalance_preserves_inv_right{value: Isize}{left right: AVLTree Isize}{b
       -- We can apply the spec of rotateLeft to get to the following
       -- intermediary step, which is similar to the LEFT-LEFT case.
       progress with rotateRight_spec as ⟨left', left'_spec, left'_inv⟩
-      · simp [bf_2, bf1_is_1, bf1_def, left1_inv, right1_inv]
-      · simp [balancingFactor_Node]; split_conjs
-        · omega
-        · apply implication_over_all left1_bnd (by omega)
-        · apply implication_over_all right1_bnd (by omega)
+      · simp [*]
+      · simp [*, boundedBalancingFactor_expand (by decide: 1 < 2)]
       -- After this operation, this is the current state of our tree
       /-
           ┌────tree────┐
@@ -630,19 +610,8 @@ theorem rebalance_preserves_inv_right{value: Isize}{left right: AVLTree Isize}{b
 
         -- Now we can simply apply the rotateLeft spec and solve the goal through simplification
         progress as ⟨tree', tree'_spec, tree'_inv⟩
-        · unfold AVLTree.invariant
-          simp only [left'_inv,right_inv]
-          simp [balancingFactor_Node, *]
-          omega
-        · simp [balancingFactor_Node, left_H]; split_conjs
-          · simp [*]; omega
-          · apply implication_over_all left_bnd (by omega)
-          · simp [*, balancingFactor_Node]; split_conjs
-            · omega
-            · apply implication_over_all left2_bnd (by omega)
-            · omega
-            · apply implication_over_all right2_bnd (by omega)
-            · apply implication_over_all right1_bnd (by omega)
+        · simp [*]; omega
+        · simp [*, boundedBalancingFactor_expand (by decide: 1 < 2)]; omega
         simp [tree'_inv, tree'_spec, BSTree.rotateLeft, *, balancingFactor_Node, Nat.max]
         split_conjs <;> omega/- }}} -/
     case neg bf1_ne_1 bf1_ne_n1 => -- {{{
@@ -674,13 +643,13 @@ theorem rebalance_preserves_wf[LinearOrder α][IsTotal α (·≤·)]{tree: BSTre
 
           have v1_value: v1 < value := left_bs _ (by simp)
 
-          -- NOTE: Closing dependent arrows
-          intro x hyp
+          -- NOTE: Closing dependent arrows{{{
+          intro x hyp 
           obtain (h | h) | h := hyp
           · rw [h]; assumption
           · apply right1_bs; assumption
           · trans value <;> try assumption
-            apply right_bs; assumption
+            apply right_bs; assumption/- }}} -/
         else if bf1_n1: (left1.height - right1.height : Int) = -1 then
           -- LEFT-RIGHT case
           simp [bf1_n1]
@@ -690,17 +659,18 @@ theorem rebalance_preserves_wf[LinearOrder α][IsTotal α (·≤·)]{tree: BSTre
             simp [BSTree.rotateRight, BSTree.rotateLeft]
             split_conjs <;> try assumption
 
-            -- NOTE: Closing dependent arrows
+            -- NOTE: Closing dependent arrows{{{
             intro x x_right
             trans value <;> try assumption
-            apply right_bs; assumption
+            apply right_bs; assumption/- }}} -/
           case Node v2 left2 right2 =>
             have ⟨left2_wf, righ2_wf, left2_bs, right2_bs⟩ := right1_wf
             have v1_v2 : v1 < v2 := by exact right1_bs v2 (by simp)
             have v2_value : v2 < value := by exact left_bs v2 (by simp)
 
             simp [BSTree.rotateRight, BSTree.rotateLeft, *]
-            -- NOTE: Closing dependent arrows
+
+            -- NOTE: Closing dependent arrows{{{
             split_conjs <;> try assumption
             · intro x x_left2; apply right1_bs; simp [*]
             · intro x x_right2; apply left_bs; simp [*]
@@ -715,7 +685,7 @@ theorem rebalance_preserves_wf[LinearOrder α][IsTotal α (·≤·)]{tree: BSTre
               · rw [h]; assumption
               · apply right2_bs; assumption
               · trans value <;> try assumption
-                apply right_bs; assumption
+                apply right_bs; assumption/- }}} -/
         else
           -- We have that rebalance acts as the identity funciton
           -- so we can close the goal with our current assumptions
@@ -740,13 +710,13 @@ theorem rebalance_preserves_wf[LinearOrder α][IsTotal α (·≤·)]{tree: BSTre
 
           have v1_value: value < v1 := right_bs _ (by simp)
 
-          -- NOTE: Closing dependent arrows
+          -- NOTE: Closing dependent arrows{{{
           intro x hyp
           obtain (h | h) | h := hyp
           · rw [h]; assumption
           · trans value <;> try assumption
             apply left_bs; assumption
-          · apply left1_bs; assumption
+          · apply left1_bs; assumption/- }}} -/
         else if bf1_n1: (left1.height - right1.height : Int) = 1 then
           -- RIGHT-LEFT case
           simp [bf1_n1]
@@ -756,17 +726,17 @@ theorem rebalance_preserves_wf[LinearOrder α][IsTotal α (·≤·)]{tree: BSTre
             simp [BSTree.rotateRight, BSTree.rotateLeft]
             split_conjs <;> try assumption
 
-            -- NOTE: Closing dependent arrows
+            -- NOTE: Closing dependent arrows{{{
             intro x x_right
             trans value <;> try assumption
-            apply left_bs; assumption
+            apply left_bs; assumption/- }}} -/
           case Node v2 left2 right2 =>
             have ⟨left2_wf, righ2_wf, left2_bs, right2_bs⟩ := left1_wf
             have v1_v2 : v2 <v1  := by exact left1_bs v2 (by simp)
             have v2_value : value < v2 := by exact right_bs v2 (by simp)
 
             simp [BSTree.rotateRight, BSTree.rotateLeft, *]
-            -- NOTE: Closing dependent arrows
+            -- NOTE: Closing dependent arrows{{{
             split_conjs <;> try assumption
             · intro x x_left2; apply right_bs; simp [*]
             · intro x x_right2; apply left1_bs; simp [*]
@@ -781,7 +751,7 @@ theorem rebalance_preserves_wf[LinearOrder α][IsTotal α (·≤·)]{tree: BSTre
               · rw [h]; assumption
               · apply right2_bs; assumption
               · trans v1 <;> try assumption
-                apply right1_bs; assumption
+                apply right1_bs; assumption/- }}} -/
         else
           -- We have that rebalance acts as the identity funciton
           -- so we can close the goal with our current assumptions
