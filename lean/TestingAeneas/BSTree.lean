@@ -108,16 +108,17 @@ theorem contains_spec[BEq α][LawfulBEq α][LinearOrder α][DecidableLT α][IsTo
         have := ne_of_lt (Trans.trans this target_ge_curr)
         contradiction/- }}} -/
 
-theorem insert_spec[BEq α][LinearOrder α][DecidableLT α][IsTotal α (·≤·)](tree: BSTree α)(value: α)
+theorem insert_spec[BEq α][LinearOrder α][DecidableLT α][IsTotal α (·≤·)]{tree: BSTree α}
 : tree.well_formed
--> let tree' := tree.insert value
+-> ∀ value, 
+   let tree' := tree.insert value
    insert value tree.toSet = ↑tree' ∧ tree'.well_formed
 := by/- {{{ -/
   cases tree <;> simp
   case Node curr left right =>
-    intro left_wf right_wf left_inv right_inv
-    have ⟨left'_spec, left'_wf⟩:= insert_spec left value left_wf
-    have ⟨right'_spec, right'_wf⟩:= insert_spec right value right_wf
+    intro left_wf right_wf left_inv right_inv value
+    have ⟨left'_spec, left'_wf⟩:= insert_spec left_wf value
+    have ⟨right'_spec, right'_wf⟩:= insert_spec right_wf value
     split_ifs <;> simp [*] at *
     case pos value_lt_curr =>
       split_conjs <;> try assumption

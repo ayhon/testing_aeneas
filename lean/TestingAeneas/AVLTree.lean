@@ -873,8 +873,9 @@ theorem insert_and_warn_spec{tree: AVLTree Isize}(value: Isize)
           have tree'_wf: (AVLTree.Node curr left' right bf').toBS.well_formed := by
             simp [left'_wf, right_wf]
             split_conjs
-            · have := SetRefinement.insert_spec left value left_wf |>.left
-              simp [left'_is_insert, <-this, value_lt_curr]
+            · have := SetRefinement.insert_spec left_wf value |>.left
+              -- NOTE: Perhaps it's best if I separate `insert_spec` and `insert_pres_wf`.
+              simp [left'_is_insert, <-this, value_lt_curr, left_bs]
               exact left_bs
             · exact right_bs
           have: left'.toBS.balancingFactor ≠ 0 := by
