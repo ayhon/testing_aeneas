@@ -31,7 +31,7 @@ def Tree.insert: Tree α -> α -> Tree α
 | .nil, a => .node a .nil .nil
 | .node v lhs rhs, a => .node v lhs (Tree.insert rhs a)
 
-@[pspec]
+@[progress]
 theorem insert_spec{a: α}{tree: BinTree α}
 : ∃ tree',
     BinTree.insert tree a = Result.ok tree' ∧
@@ -53,7 +53,7 @@ def Tree.size: Tree α -> Nat
 | .nil => 0
 | .node _ lhs rhs => 1 + Tree.size lhs + Tree.size rhs
 
-@[pspec]
+@[progress]
 def size_spec(tree: BinTree α)
 (noOverflow: Tree.size (tree: Tree α) <= U32.max)
 : ∃ size,
@@ -175,7 +175,7 @@ def Tree.contains[BEq α]: Tree α -> α -> Bool
 abbrev is_proper_eq[BEq α](o: testing_aeneas.core.cmp.Eq α) : Prop
 := ∀ (a b: α), o.PartialEqInst.eq a b = Result.ok (a == b)
 
-@[pspec]
+@[progress]
 theorem contains_spec[BEq α](tree: BinTree α)(target: α)
 (proper_eq_instance: is_proper_eq o)
 : ∃ b,
@@ -211,7 +211,7 @@ def Tree.reverse: Tree α -> Tree α
 | .nil => .nil
 | .node value lhs rhs => .node value (Tree.reverse rhs) (Tree.reverse lhs)
 
-@[pspec]
+@[progress]
 theorem reverse_spec(tree: BinTree α)
 : ∃ tree', 
     BinTree.reverse tree = Result.ok tree' ∧
@@ -279,7 +279,7 @@ theorem contains_insert[BEq α][LawfulBEq α](tree: Tree α)(target: α)
     apply Or.inr
     apply contains_insert
 
-@[pspec]
+@[progress]
 theorem rust_contains_insert[BEq α][LawfulBEq α](tree: BinTree α)(target: α)
 (proper_eq_instance: is_proper_eq o)
 : ∃ treeᵢ,

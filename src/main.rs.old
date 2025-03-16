@@ -1,0 +1,30 @@
+fn main() -> Result<(), std::io::Error>{
+    let stdin = std::io::stdin();
+    let mut t = avl::AVLTree::Nil::<isize>;
+    let mut counter = 0;
+    loop {
+        let mut input: String = "".to_string();
+        let _len = stdin.read_line(&mut input)?;
+        let mut iter = input.split_whitespace();
+        let Some(op) = iter.next() else { break };
+        match op {
+            "ins" => {
+                for arg in iter {
+                    let Ok(x) = isize::from_str_radix(arg, 10) else { break };
+                    t = t.insert(x);
+                }
+            }
+            "del" => {
+                for arg in iter {
+                    let Ok(x) = isize::from_str_radix(arg, 10) else { break };
+                    t = t.delete(&x);
+                }
+            }
+            _ => break
+        }
+        let filename = format!("rust_avl_run_{:04}.dot", counter);
+        std::fs::write(filename, t.to_dot())?;
+        counter += 1;
+    }
+    Ok(())
+}

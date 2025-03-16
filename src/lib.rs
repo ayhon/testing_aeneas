@@ -1,4 +1,5 @@
 #![feature(box_patterns)]
+#![allow(dead_code)]
 
 // use std::cmp::{min,max};
 fn max(a: i8, b: i8) -> i8 {
@@ -140,7 +141,7 @@ impl BSTree<isize>{
     }
 }
 
-enum AVLTree<T> {
+pub enum AVLTree<T> {
     Nil,
     Node {
         value: T,
@@ -151,7 +152,7 @@ enum AVLTree<T> {
 }
 
 impl AVLTree<isize>{
-    fn contains(&self, target: &isize) -> bool {
+    pub fn contains(&self, target: &isize) -> bool {
         match self {
             Self::Nil => false,
             Self::Node {value, left, right, ..} => {
@@ -263,39 +264,7 @@ impl AVLTree<isize>{
     }
 
     fn rebalance(self) -> Self {
-        /* TODO: Ask Nadrieril about this ↓ */
-
-        // match self {
-        //     node@Self::Node { bf, ref left, .. }  // LEFT-LEFT
-        //     if bf == 2 && left.balance_factor() == 1  => {
-        //         node.rotateRight()
-        //     }
-        //     Self::Node { bf, left, right, value }  // LEFT-RIGHT
-        //     if bf == 2 && left.balance_factor() == -1  => {
-        //         Self::Node {
-        //             value,
-        //             bf,
-        //             left: Box::new(left.rotateLeft()),
-        //             right,
-        //         }.rotateRight()
-        //     }
-        //     Self::Node { bf, right, left, value }  // RIGHT-LEFT
-        //     if bf == -2 && right.balance_factor() == 1  => {
-        //         Self::Node {
-        //             value,
-        //             bf,
-        //             left: Box::new(left.rotateRight()),
-        //             right,
-        //         }.rotateLeft()
-        //     }
-        //     node@Self::Node { bf, ref right, .. }  // RIGHT-RIGHT
-        //     if bf == -2 && right.balance_factor() == -1  => {
-        //         node.rotateLeft()
-        //     }
-        //     _ => self
-        // }
         match self {
-            // TODO: Think about this a bit more
             Self::Node {
                 value,
                 bf: balance_factor,
@@ -346,6 +315,62 @@ impl AVLTree<isize>{
         }
     }
 
+    fn rebalance_with_height_decrease(self) -> (Self, bool) {
+        match self {
+            Self::Node {
+                value,
+                bf: balance_factor,
+                left,
+                right,
+            } if balance_factor == 2 => { // LEFT-
+                let child_balance_factor = left.balance_factor();
+                if child_balance_factor == -1 { // -RIGHT
+                    let res = Self::Node {
+                        value,
+                        bf: 2,
+                        left: Box::new(left.rotateLeft()),
+                        right,
+                    }.rotateRight();
+                    (res, true)
+                } else {
+                    let res = Self::Node {
+                        value,
+                        bf: 2,
+                        left,
+                        right,
+                    }.rotateRight();
+                    (res, child_balance_factor == 1)
+                }
+            }
+            Self::Node {
+                value,
+                bf: balance_factor,
+                left,
+                right,
+            } if balance_factor == -2 => { // RIGHT-
+                let child_balance_factor = right.balance_factor();
+                if child_balance_factor == 1 { // -LEFT
+                    let res = Self::Node {
+                        value,
+                        bf: -2,
+                        left, 
+                        right: Box::new(right.rotateRight()),
+                    }.rotateLeft();
+                    (res, true)
+                } else { // -RIGHT
+                    let res = Self::Node {
+                        value,
+                        bf: -2,
+                        left, 
+                        right,
+                    }.rotateLeft();
+                    (res, child_balance_factor == -1)
+                }
+            }
+            _ => (self, false),
+        }
+    }
+
     fn insertAndWarn(self, target: isize) -> (Self,bool) {
         match self {
             Self::Nil => (Self::Node{
@@ -377,15 +402,130 @@ impl AVLTree<isize>{
         }
     }
 
-    fn insert(self, value: isize) -> Self {
+    pub fn insert(self, value: isize) -> Self {
         self.insertAndWarn(value).0
     }
 
-    // fn deleteAndWarn(self, value: &isize) -> (Self,bool) {
-    //     todo!()
+    fn updateLeftDeletion(
+        value: isize,
+        did_left_height_decrease: bool,
+        old_bf: i8,
+        left: Box<AVLTree<isize>>,
+        right: Box<AVLTree<isize>>,
+    ) -> (AVLTree<isize>,bool) {
+        let bf = if did_left_height_decrease { old_bf - 1 } else { old_bf };
+        let (res, rebalance_height_decrease) = Self::Node{
+            value, left, right, bf
+        }.rebalance_with_height_decrease();
+        let did_height_decrease = did_left_height_decrease && bf == 0 || rebalance_height_decrease;
+        (res, did_height_decrease)
+    }
+    fn updateRightDeletion(
+        value: isize,
+        did_right_height_decrease: bool,
+        old_bf: i8,
+        left: Box<AVLTree<isize>>,
+        right: Box<AVLTree<isize>>,
+    ) -> (AVLTree<isize>,bool) {
+        let bf = if did_right_height_decrease { old_bf + 1 } else { old_bf };
+        let (res, rebalance_height_decrease) = Self::Node{
+            value, left, right, bf
+        }.rebalance_with_height_decrease();
+        let did_height_decrease = did_right_height_decrease && bf == 0 || rebalance_height_decrease;
+        (res, did_height_decrease)
+    }
+
+    // popLeftmost tree = (tree', val, b) -> delete tree val = (tree', b)
+    fn popLeftmost(self) -> (Self, isize, bool) {
+        match self {
+            Self::Nil => (Self::Nil, 0, false), // UNREACHABLE
+            Self::Node{value: popped, left: box Self::Nil, right, ..} => (*right, popped, true),
+            Self::Node{value, left, right, bf} => {
+                let (left, popped, did_left_height_decrease) = left.popLeftmost();
+                let (res, did_height_decrease) = Self::updateLeftDeletion(
+                    value, did_left_height_decrease, bf, Box::new(left), right
+                );
+                (res, popped, did_height_decrease)
+            }
+        }
+    }
+
+    fn deleteAndWarn(self, target: &isize) -> (Self,bool) {
+        match self {
+            Self::Nil => (Self::Nil, false),
+            Self::Node{value: curr, left, right, bf} if *target < curr => {
+                let (left, did_left_height_decrease) = left.deleteAndWarn(target);
+                Self::updateLeftDeletion(curr, did_left_height_decrease, bf, Box::new(left), right)
+            }
+            Self::Node{value: curr, left, right, bf} if *target > curr => {
+                let (right, did_right_height_decrease) = right.deleteAndWarn(target);
+                Self::updateRightDeletion(curr, did_right_height_decrease, bf, left, Box::new(right))
+            }
+            Self::Node{value: curr, left, right, bf} if *target == curr => {
+                match (*left, *right) {
+                    (Self::Nil, right     ) => (right, true),
+                    (left,      Self::Nil ) => (left, true),
+                    (left,      right     ) => {
+                        let (right, popped, did_right_height_decrease) = right.popLeftmost(); 
+                        Self::updateRightDeletion(popped, did_right_height_decrease, bf, Box::new(left), Box::new(right))
+                    }
+                }
+            }
+            _ => (self, false)
+        }
+    }
+    pub fn delete(self, value: &isize) -> Self {
+        self.deleteAndWarn(value).0
+    }
+
+    // // FOR TESTING
+    // fn height(&self) -> usize {
+    //     match self {
+    //         Self::Nil => 0,
+    //         Self::Node{left,right,..} => left.height().max(right.height()) + 1
+    //     }
     // }
-    // fn delete(self, value: &isize) -> Self {
-    //     self.deleteAndWarn(value)
+    // fn is_bs_bounded(&self, bot: isize, top: isize) -> bool {
+    //     assert!(bot <= top, format!("Expected {bot} <= {top}"));
+    //     match *self {
+    //         Self::Nil => true,
+    //         Self::Node{value, left, right, ..} => {
+    //             let bounded = bot <= value && value <= top;
+    //             bounded && left.bounded(bot, value) && right.bounded(value, top)
+    //         }
+    //     }
+    // }
+    // fn is_bs(&self) -> bool {
+    //     self.is_bs_bounded(isize::min, isize::max)
+    // }
+    // fn is_avl(&self) -> bool {
+    //     self.is_bs() &&
+    //     match *self {
+    //         Self::Nil => true,
+    //         Self::Node{left,right,bf,..} => {
+    //             let inv = (bf == left.height - right.height); 
+    //             let bal = bf.abs() <= 2; 
+    //             inv && bal && left.is_avl() && rigth.is_avl()
+    //         }
+    //     }
+    // }
+    // fn to_dot_inner(&self, parent: Option<isize>) -> Vec<String> {
+    //     match self {
+    //         Self::Nil => vec!(),
+    //         Self::Node{value, left, right, ..} => {
+    //             let mut res = vec!(format!("q{value} [label=\"{value}\"]"));
+    //             if let Some(parent) = parent {
+    //                 res.push(format!("q{parent} -> q{value}"));
+    //             }
+    //             res.extend(left.to_dot_inner(Some(*value)));
+    //             res.extend(right.to_dot_inner(Some(*value)));
+    //             res
+    //         }
+    //     }
+    // }
+    // pub fn to_dot(&self) -> String {
+    //     let content = self.to_dot_inner(None).join("\n");
+    //     format!("digraph {{\n{content}\n}}")
     // }
 }
 
