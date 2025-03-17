@@ -1,5 +1,6 @@
 name = "TestingAeneas"
 version = "0.1.0"
+defaultTargets = ["TestingAeneas"]
 
 [[lean_lib]]
 name = "TestingAeneas"
